@@ -3,8 +3,9 @@ import { PriorityBadge, StatusBadge, CategoryIcon } from '@/components/ReportBad
 import { CATEGORY_LABELS } from '@/types/report';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { ArrowLeft, Edit, Trash2, MapPin, Briefcase, Clock } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, MapPin, Briefcase, Clock, Download } from 'lucide-react';
 import { deleteReport } from '@/lib/storage';
+import { exportReportToPdf } from '@/lib/export-pdf';
 import { toast } from 'sonner';
 
 interface ReportDetailProps {
@@ -31,6 +32,9 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: ReportDetail
           <span className="text-sm font-medium">Back</span>
         </button>
         <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => { exportReportToPdf(report); toast.success('PDF downloaded'); }} className="gap-1.5 text-xs">
+            <Download className="w-3.5 h-3.5" /> PDF
+          </Button>
           <Button size="sm" variant="outline" onClick={() => onEdit(report.id)} className="gap-1.5 text-xs">
             <Edit className="w-3.5 h-3.5" /> Edit
           </Button>
