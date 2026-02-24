@@ -26,7 +26,7 @@ export function ReportForm({ report, onBack, onSaved }: ReportFormProps) {
   const [projectName, setProjectName] = useState(report?.projectName ?? '');
   const [location, setLocation] = useState(report?.location ?? '');
 
-  const { images, setImages, addImages, removeImage, triggerInput, inputRef } = useImageAttachments(report?.images ?? []);
+  const { images, setImages, addImages, removeImage, triggerInput, takeNativePhoto, inputRef } = useImageAttachments(report?.images ?? []);
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -156,17 +156,7 @@ export function ReportForm({ report, onBack, onSaved }: ReportFormProps) {
             <Button type="button" variant="outline" size="sm" onClick={triggerInput} className="gap-1.5 text-xs">
               <ImagePlus className="w-4 h-4" /> Gallery
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'image/*';
-              input.capture = 'environment';
-              input.onchange = (e) => {
-                const files = (e.target as HTMLInputElement).files;
-                if (files) addImages(files);
-              };
-              input.click();
-            }} className="gap-1.5 text-xs">
+            <Button type="button" variant="outline" size="sm" onClick={takeNativePhoto} className="gap-1.5 text-xs">
               <Camera className="w-4 h-4" /> Camera
             </Button>
           </div>

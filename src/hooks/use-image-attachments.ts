@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { ReportImage } from '@/types/report';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 export function useImageAttachments(initial: ReportImage[] = []) {
   const [images, setImages] = useState<ReportImage[]>(initial);
@@ -41,5 +42,36 @@ export function useImageAttachments(initial: ReportImage[] = []) {
 
   const triggerInput = useCallback(() => inputRef.current?.click(), []);
 
-  return { images, setImages, addImages, removeImage, triggerInput, inputRef };
+  const takeNativePhoto = useCallback(async () => {
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 80,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera,
+        width: 1200,
+        height: 1200,
+      });
+      if (photo.dataUrl) {
+        setImages(prev => [...prev, {
+          id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          dataUrl: photo.dataUrl!,
+          timestamp: new Date().toISOString(),
+        }]);
+      }
+    } catch {
+      // User cancelled or camera unavailable — fall back to file input
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.capture = 'environment';
+      input.onchange = (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (files) addImages(files);
+      };
+      input.click();
+    }
+  }, [addImages]);
+
+  return { images, setImages, addImages, removeImage, triggerInput, takeNativePhoto, inputRef };
 }
