@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { Report, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '@/types/report';
 import { format } from 'date-fns';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 export async function exportReportToPdf(report: Report) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -122,5 +123,19 @@ export async function exportReportToPdf(report: Report) {
   }
 
   const filename = `PVP_Report_${report.title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)}_${format(new Date(report.createdAt), 'yyyyMMdd')}.pdf`;
-  doc.save(filename);
+
+  try {
+    const base64 = doc.output('datauristring').split(',')[1];
+    await Filesystem.writeFile({
+      path: `Download/${filename}`,
+      data: base64,
+      directory: Directory.ExternalStorage,
+      recursive: true,
+    });
+    return { saved: true, path: `Download/${filename}` };
+  } catch {
+    // Fallback to browser download
+    doc.save(filename);
+    return { saved: false, path: filename };
+  }
 }

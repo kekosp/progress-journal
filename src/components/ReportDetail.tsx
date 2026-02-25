@@ -32,7 +32,7 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: ReportDetail
           <span className="text-sm font-medium">Back</span>
         </button>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => { exportReportToPdf(report); toast.success('PDF downloaded'); }} className="gap-1.5 text-xs">
+          <Button size="sm" variant="outline" onClick={async () => { const result = await exportReportToPdf(report); toast.success(result.saved ? `PDF saved to ${result.path}` : 'PDF downloaded'); }} className="gap-1.5 text-xs">
             <Download className="w-3.5 h-3.5" /> PDF
           </Button>
           <Button size="sm" variant="outline" onClick={() => onEdit(report.id)} className="gap-1.5 text-xs">
