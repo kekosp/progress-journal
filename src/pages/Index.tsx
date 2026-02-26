@@ -87,7 +87,7 @@ const Index = () => {
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-lg font-bold tracking-tight">PVP Reports</h1>
+              <h1 className="text-lg font-bold tracking-tight">Reports</h1>
               <p className="text-xs opacity-80">Personal Verification & Progress</p>
             </div>
             <div className="flex items-center gap-2">
