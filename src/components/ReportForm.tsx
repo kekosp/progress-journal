@@ -162,9 +162,22 @@ export function ReportForm({ report, onBack, onSaved }: ReportFormProps) {
           </div>
           {images.length > 0 && (
             <div className="grid grid-cols-3 gap-2 mt-2">
-              {images.map(img => (
-                <div key={img.id} className="relative group rounded-lg overflow-hidden aspect-square bg-muted">
-                  <img src={img.dataUrl} alt="" className="w-full h-full object-cover" />
+              {images.map((img, idx) => (
+                <div key={img.id} className="relative group rounded-lg overflow-hidden bg-muted">
+                  <div className="aspect-square">
+                    <img src={img.dataUrl} alt={img.caption || ''} className="w-full h-full object-cover" />
+                  </div>
+                  <input
+                    type="text"
+                    value={img.caption || ''}
+                    onChange={e => {
+                      const updated = [...images];
+                      updated[idx] = { ...updated[idx], caption: e.target.value };
+                      setImages(updated);
+                    }}
+                    placeholder="Caption..."
+                    className="w-full text-[10px] px-1.5 py-1 bg-card border-t border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
                   <button
                     onClick={() => removeImage(img.id)}
                     className="absolute top-1 right-1 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"

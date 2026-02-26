@@ -4,13 +4,15 @@ import { getReports, getReportById } from '@/lib/storage';
 import { ReportCard } from '@/components/ReportCard';
 import { ReportForm } from '@/components/ReportForm';
 import { ReportDetail } from '@/components/ReportDetail';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, ClipboardList, Filter } from 'lucide-react';
+import { Plus, Search, ClipboardList, Filter, ArrowUpDown } from 'lucide-react';
 
 type View = 'list' | 'create' | 'edit' | 'detail';
-
+type SortField = 'date' | 'priority' | 'status';
+type SortDir = 'asc' | 'desc';
 const Index = () => {
   const [view, setView] = useState<View>('list');
   const [editingReport, setEditingReport] = useState<Report | undefined>();
@@ -20,8 +22,15 @@ const Index = () => {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const refresh = () => setReports(getReports());
+
+  const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  const statusOrder: Record<string, number> = { 'in-progress': 0, draft: 1, completed: 2, archived: 3 };
 
   const filtered = useMemo(() => {
     let r = reports;
@@ -31,8 +40,18 @@ const Index = () => {
     }
     if (filterCategory !== 'all') r = r.filter(rep => rep.category === filterCategory);
     if (filterPriority !== 'all') r = r.filter(rep => rep.priority === filterPriority);
-    return r;
-  }, [reports, search, filterCategory, filterPriority]);
+    if (dateFrom) r = r.filter(rep => rep.createdAt >= dateFrom);
+    if (dateTo) r = r.filter(rep => new Date(rep.createdAt) <= new Date(dateTo + 'T23:59:59'));
+
+    const sorted = [...r].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'date') cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      else if (sortField === 'priority') cmp = priorityOrder[a.priority] - priorityOrder[b.priority];
+      else if (sortField === 'status') cmp = statusOrder[a.status] - statusOrder[b.status];
+      return sortDir === 'desc' ? -cmp : cmp;
+    });
+    return sorted;
+  }, [reports, search, filterCategory, filterPriority, sortField, sortDir, dateFrom, dateTo]);
 
   const stats = useMemo(() => ({
     total: reports.length,
@@ -71,13 +90,16 @@ const Index = () => {
               <h1 className="text-lg font-bold tracking-tight">PVP Reports</h1>
               <p className="text-xs opacity-80">Personal Verification & Progress</p>
             </div>
-            <Button
-              size="sm"
-              onClick={() => setView('create')}
-              className="bg-accent text-accent-foreground hover:bg-accent/90 gap-1.5 shadow-lg"
-            >
-              <Plus className="w-4 h-4" /> New
-            </Button>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button
+                size="sm"
+                onClick={() => setView('create')}
+                className="bg-accent text-accent-foreground hover:bg-accent/90 gap-1.5 shadow-lg"
+              >
+                <Plus className="w-4 h-4" /> New
+              </Button>
+            </div>
           </div>
 
           {/* Stats */}
@@ -120,25 +142,46 @@ const Index = () => {
             </Button>
           </div>
           {showFilters && (
-            <div className="grid grid-cols-2 gap-2 animate-slide-up">
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="text-xs h-8 bg-background"><SelectValue placeholder="Category" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="text-xs">All Categories</SelectItem>
-                  {(Object.entries(CATEGORY_LABELS) as [ReportCategory, string][]).map(([k, v]) => (
-                    <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={filterPriority} onValueChange={setFilterPriority}>
-                <SelectTrigger className="text-xs h-8 bg-background"><SelectValue placeholder="Priority" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="text-xs">All Priorities</SelectItem>
-                  {(Object.entries(PRIORITY_LABELS) as [ReportPriority, string][]).map(([k, v]) => (
-                    <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2 animate-slide-up">
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                  <SelectTrigger className="text-xs h-8 bg-background"><SelectValue placeholder="Category" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">All Categories</SelectItem>
+                    {(Object.entries(CATEGORY_LABELS) as [ReportCategory, string][]).map(([k, v]) => (
+                      <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterPriority} onValueChange={setFilterPriority}>
+                  <SelectTrigger className="text-xs h-8 bg-background"><SelectValue placeholder="Priority" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">All Priorities</SelectItem>
+                    {(Object.entries(PRIORITY_LABELS) as [ReportPriority, string][]).map(([k, v]) => (
+                      <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="text-xs h-8 bg-background" placeholder="From" />
+                </div>
+                <div>
+                  <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="text-xs h-8 bg-background" placeholder="To" />
+                </div>
+                <Select value={`${sortField}-${sortDir}`} onValueChange={v => { const [f, d] = v.split('-') as [SortField, SortDir]; setSortField(f); setSortDir(d); }}>
+                  <SelectTrigger className="text-xs h-8 bg-background"><ArrowUpDown className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date-desc" className="text-xs">Newest first</SelectItem>
+                    <SelectItem value="date-asc" className="text-xs">Oldest first</SelectItem>
+                    <SelectItem value="priority-asc" className="text-xs">Priority ↑</SelectItem>
+                    <SelectItem value="priority-desc" className="text-xs">Priority ↓</SelectItem>
+                    <SelectItem value="status-asc" className="text-xs">Status ↑</SelectItem>
+                    <SelectItem value="status-desc" className="text-xs">Status ↓</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
         </div>
