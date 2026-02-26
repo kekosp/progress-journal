@@ -198,7 +198,7 @@ const Index = () => {
               {reports.length === 0 ? 'No reports yet' : 'No matching reports'}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {reports.length === 0 ? 'Create your first PVP report' : 'Try adjusting your search or filters'}
+              {reports.length === 0 ? 'Create your first report' : 'Try adjusting your search or filters'}
             </p>
             {reports.length === 0 && (
               <Button onClick={() => setView('create')} className="bg-primary text-primary-foreground gap-1.5">
