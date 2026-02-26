@@ -7,6 +7,11 @@ import { ArrowLeft, Edit, Trash2, MapPin, Briefcase, Clock, Download } from 'luc
 import { deleteReport } from '@/lib/storage';
 import { exportReportToPdf } from '@/lib/export-pdf';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface ReportDetailProps {
   report: Report;
@@ -17,11 +22,9 @@ interface ReportDetailProps {
 
 export function ReportDetail({ report, onBack, onEdit, onDeleted }: ReportDetailProps) {
   const handleDelete = () => {
-    if (window.confirm('Delete this report? This cannot be undone.')) {
-      deleteReport(report.id);
-      toast.success('Report deleted');
-      onDeleted();
-    }
+    deleteReport(report.id);
+    toast.success('Report deleted');
+    onDeleted();
   };
 
   return (
@@ -38,9 +41,27 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: ReportDetail
           <Button size="sm" variant="outline" onClick={() => onEdit(report.id)} className="gap-1.5 text-xs">
             <Edit className="w-3.5 h-3.5" /> Edit
           </Button>
-          <Button size="sm" variant="outline" onClick={handleDelete} className="gap-1.5 text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground">
-            <Trash2 className="w-3.5 h-3.5" /> Delete
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground">
+                <Trash2 className="w-3.5 h-3.5" /> Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Report</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete "{report.title}". This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -81,8 +102,13 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: ReportDetail
             </h2>
             <div className="grid grid-cols-2 gap-2">
               {report.images.map(img => (
-                <div key={img.id} className="rounded-lg overflow-hidden aspect-square bg-muted">
-                  <img src={img.dataUrl} alt="" className="w-full h-full object-cover" />
+                <div key={img.id} className="rounded-lg overflow-hidden bg-muted">
+                  <div className="aspect-square">
+                    <img src={img.dataUrl} alt={img.caption || ''} className="w-full h-full object-cover" />
+                  </div>
+                  {img.caption && (
+                    <p className="text-xs text-muted-foreground px-2 py-1.5 bg-card border-t border-border">{img.caption}</p>
+                  )}
                 </div>
               ))}
             </div>
