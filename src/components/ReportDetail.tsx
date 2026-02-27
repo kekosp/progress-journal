@@ -104,13 +104,32 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: ReportDetail
               {report.images.map(img => (
                 <div key={img.id} className="rounded-lg overflow-hidden bg-muted">
                   <div className="aspect-square">
-                    <img src={img.dataUrl} alt={img.caption || ''} className="w-full h-full object-cover" />
+                    <img src={img.annotatedDataUrl || img.dataUrl} alt={img.caption || ''} className="w-full h-full object-cover" />
                   </div>
                   {img.caption && (
                     <p className="text-xs text-muted-foreground px-2 py-1.5 bg-card border-t border-border">{img.caption}</p>
                   )}
+                  {img.annotatedDataUrl && (
+                    <p className="text-[10px] text-primary px-2 py-0.5 bg-card border-t border-border font-medium">✏️ Annotated</p>
+                  )}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Signature */}
+        {report.signatureDataUrl && (
+          <div>
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Digital Signature</h2>
+            <div className="bg-card rounded-lg p-4 border border-border text-center">
+              <img src={report.signatureDataUrl} alt="Signature" className="h-16 mx-auto mb-2" />
+              {report.signedBy && <p className="text-sm font-medium text-foreground">{report.signedBy}</p>}
+              {report.signedAt && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Signed on {format(new Date(report.signedAt), 'MMM d, yyyy HH:mm')}
+                </p>
+              )}
             </div>
           </div>
         )}

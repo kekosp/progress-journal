@@ -7,6 +7,7 @@ export interface ReportImage {
   dataUrl: string;
   caption?: string;
   timestamp: string;
+  annotatedDataUrl?: string;
 }
 
 export interface Report {
@@ -22,6 +23,9 @@ export interface Report {
   updatedAt: string;
   projectName?: string;
   location?: string;
+  signatureDataUrl?: string;
+  signedBy?: string;
+  signedAt?: string;
 }
 
 export const CATEGORY_LABELS: Record<ReportCategory, string> = {
