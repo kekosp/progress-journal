@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Report, ReportCategory, ReportPriority, ReportStatus, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '@/types/report';
 import { saveReport, generateId } from '@/lib/storage';
 import { useImageAttachments } from '@/hooks/use-image-attachments';
+import { ImageAnnotator } from '@/components/ImageAnnotator';
+import { SignaturePad } from '@/components/SignaturePad';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Camera, ImagePlus, X, Save } from 'lucide-react';
+import { ArrowLeft, Camera, ImagePlus, X, Save, PenTool } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ReportFormProps {
@@ -25,8 +27,13 @@ export function ReportForm({ report, onBack, onSaved }: ReportFormProps) {
   const [notes, setNotes] = useState(report?.notes ?? '');
   const [projectName, setProjectName] = useState(report?.projectName ?? '');
   const [location, setLocation] = useState(report?.location ?? '');
+  const [signatureDataUrl, setSignatureDataUrl] = useState(report?.signatureDataUrl ?? '');
+  const [signedBy, setSignedBy] = useState(report?.signedBy ?? '');
+  const [annotatingImageId, setAnnotatingImageId] = useState<string | null>(null);
 
   const { images, setImages, addImages, removeImage, triggerInput, takeNativePhoto, inputRef } = useImageAttachments(report?.images ?? []);
+
+  const annotatingImage = annotatingImageId ? images.find(i => i.id === annotatingImageId) : null;
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -47,11 +54,27 @@ export function ReportForm({ report, onBack, onSaved }: ReportFormProps) {
       location: location.trim(),
       createdAt: report?.createdAt ?? now,
       updatedAt: now,
+      signatureDataUrl: signatureDataUrl || undefined,
+      signedBy: signedBy || undefined,
+      signedAt: signatureDataUrl ? (report?.signedAt ?? now) : undefined,
     };
     saveReport(data);
     toast.success(report ? 'Report updated' : 'Report created');
     onSaved();
   };
+
+  if (annotatingImage) {
+    return (
+      <ImageAnnotator
+        imageDataUrl={annotatingImage.annotatedDataUrl || annotatingImage.dataUrl}
+        onSave={(annotatedDataUrl) => {
+          setImages(prev => prev.map(img => img.id === annotatingImageId ? { ...img, annotatedDataUrl } : img));
+          setAnnotatingImageId(null);
+        }}
+        onCancel={() => setAnnotatingImageId(null)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -165,7 +188,7 @@ export function ReportForm({ report, onBack, onSaved }: ReportFormProps) {
               {images.map((img, idx) => (
                 <div key={img.id} className="relative group rounded-lg overflow-hidden bg-muted">
                   <div className="aspect-square">
-                    <img src={img.dataUrl} alt={img.caption || ''} className="w-full h-full object-cover" />
+                    <img src={img.annotatedDataUrl || img.dataUrl} alt={img.caption || ''} className="w-full h-full object-cover" />
                   </div>
                   <input
                     type="text"
@@ -178,12 +201,28 @@ export function ReportForm({ report, onBack, onSaved }: ReportFormProps) {
                     placeholder="Caption..."
                     className="w-full text-[10px] px-1.5 py-1 bg-card border-t border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <button
-                    onClick={() => removeImage(img.id)}
-                    className="absolute top-1 right-1 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
+                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => setAnnotatingImageId(img.id)}
+                      className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center"
+                      title="Annotate"
+                    >
+                      <PenTool className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => removeImage(img.id)}
+                      className="w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                  {img.annotatedDataUrl && (
+                    <div className="absolute top-1 left-1">
+                      <span className="bg-primary/80 text-primary-foreground text-[8px] px-1.5 py-0.5 rounded-full font-medium">
+                        Annotated
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -200,6 +239,37 @@ export function ReportForm({ report, onBack, onSaved }: ReportFormProps) {
             rows={5}
             className="bg-card border-border resize-none"
           />
+        </div>
+
+        {/* Signature */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Digital Signature</Label>
+          {signatureDataUrl ? (
+            <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+              <img src={signatureDataUrl} alt="Signature" className="h-16 mx-auto" />
+              {signedBy && <p className="text-xs text-center text-muted-foreground">Signed by: {signedBy}</p>}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={() => { setSignatureDataUrl(''); setSignedBy(''); }}
+              >
+                Replace Signature
+              </Button>
+            </div>
+          ) : (
+            <SignaturePad
+              initialSignature={signatureDataUrl || undefined}
+              initialName={signedBy || undefined}
+              onSave={(dataUrl, name) => {
+                setSignatureDataUrl(dataUrl);
+                setSignedBy(name);
+                toast.success('Signature applied');
+              }}
+              onClear={() => { setSignatureDataUrl(''); setSignedBy(''); }}
+            />
+          )}
         </div>
       </div>
     </div>
