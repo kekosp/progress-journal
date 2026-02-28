@@ -1,45 +1,56 @@
-import { MaintenanceEvent } from '@/types/maintenance';
+// ─── Maintenance Schedule Storage ────────────────────────────────────────────
 
-const STORAGE_KEY = 'pvp-maintenance';
+const SCHEDULE_KEY = 'maintenance-schedule';
 
-export function getMaintenanceEvents(): MaintenanceEvent[] {
+export type MaintenancePriority = 'low' | 'medium' | 'high' | 'critical';
+export type MaintenanceCategory = 'inspection' | 'maintenance' | 'safety' | 'quality' | 'progress' | 'incident' | 'other';
+
+export interface MaintenanceEvent {
+  id: string;
+  title: string;
+  description?: string;
+  date: string; // ISO date string YYYY-MM-DD
+  category: MaintenanceCategory;
+  priority: MaintenancePriority;
+  completed: boolean;
+  completedAt?: string;
+}
+
+export function getEvents(): MaintenanceEvent[] {
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(SCHEDULE_KEY);
     return data ? JSON.parse(data) : [];
   } catch {
     return [];
   }
 }
 
-export function saveMaintenanceEvent(event: MaintenanceEvent): void {
-  const events = getMaintenanceEvents();
+export function saveEvent(event: MaintenanceEvent): void {
+  const events = getEvents();
   const index = events.findIndex(e => e.id === event.id);
   if (index >= 0) {
-    events[index] = { ...event, updatedAt: new Date().toISOString() };
+    events[index] = event;
   } else {
-    events.unshift(event);
+    events.push(event);
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
 }
 
-export function deleteMaintenanceEvent(id: string): void {
-  const events = getMaintenanceEvents().filter(e => e.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+export function deleteEvent(id: string): void {
+  const events = getEvents().filter(e => e.id !== id);
+  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
 }
 
-export function getMaintenanceById(id: string): MaintenanceEvent | undefined {
-  return getMaintenanceEvents().find(e => e.id === id);
+export function toggleEventComplete(id: string): void {
+  const events = getEvents();
+  const idx = events.findIndex(e => e.id === id);
+  if (idx >= 0) {
+    events[idx].completed = !events[idx].completed;
+    events[idx].completedAt = events[idx].completed ? new Date().toISOString() : undefined;
+    localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
+  }
 }
 
-export function generateMaintenanceId(): string {
-  return `mnt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-export function getEventsForDate(date: string): MaintenanceEvent[] {
-  return getMaintenanceEvents().filter(e => e.date === date);
-}
-
-export function getEventsForMonth(year: number, month: number): MaintenanceEvent[] {
-  const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
-  return getMaintenanceEvents().filter(e => e.date.startsWith(prefix));
+export function generateEventId(): string {
+  return `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
