@@ -120,7 +120,6 @@ export function SignaturePad({ initialSignature, initialName, onSave, onClear }:
           className="bg-card border-border text-sm"
         />
       </div>
-
       <div>
         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
           Signature
@@ -146,7 +145,6 @@ export function SignaturePad({ initialSignature, initialName, onSave, onClear }:
           )}
         </div>
       </div>
-
       <div className="flex gap-2">
         <Button type="button" variant="outline" size="sm" onClick={undo} disabled={paths.length === 0} className="gap-1.5 text-xs">
           <Undo2 className="w-3.5 h-3.5" /> Undo

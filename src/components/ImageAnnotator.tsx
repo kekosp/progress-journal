@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Pencil, Circle, ArrowRight, Type, Undo2, Check, X, Minus } from 'lucide-react';
 
 type Tool = 'pen' | 'line' | 'circle' | 'arrow' | 'text';
+
 type DrawAction = {
   tool: Tool;
   color: string;
@@ -61,10 +62,8 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
     const ctx = canvas?.getContext('2d');
     const img = imgRef.current;
     if (!canvas || !ctx || !img) return;
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
     const allActions = currentAction ? [...actions, currentAction] : actions;
     allActions.forEach(a => {
       ctx.strokeStyle = a.color;
@@ -72,7 +71,6 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
       ctx.lineWidth = a.lineWidth;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-
       if (a.tool === 'pen' && a.points && a.points.length > 1) {
         ctx.beginPath();
         ctx.moveTo(a.points[0].x, a.points[0].y);
@@ -117,8 +115,12 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0]?.clientX ?? (e as React.TouchEvent).changedTouches[0]?.clientX ?? 0 : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0]?.clientY ?? (e as React.TouchEvent).changedTouches[0]?.clientY ?? 0 : (e as React.MouseEvent).clientY;
+    const clientX = 'touches' in e
+      ? e.touches[0]?.clientX ?? (e as React.TouchEvent).changedTouches[0]?.clientX ?? 0
+      : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e
+      ? e.touches[0]?.clientY ?? (e as React.TouchEvent).changedTouches[0]?.clientY ?? 0
+      : (e as React.MouseEvent).clientY;
     return { x: clientX - rect.left, y: clientY - rect.top };
   };
 
@@ -126,7 +128,6 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
     e.preventDefault();
     const pos = getPos(e);
     setIsDrawing(true);
-
     if (tool === 'text') {
       const text = prompt('Enter text:');
       if (text) {
@@ -135,7 +136,6 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
       setIsDrawing(false);
       return;
     }
-
     if (tool === 'pen') {
       setCurrentAction({ tool, color, lineWidth, points: [pos] });
     } else {
@@ -147,7 +147,6 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
     e.preventDefault();
     if (!isDrawing || !currentAction) return;
     const pos = getPos(e);
-
     if (tool === 'pen') {
       setCurrentAction(prev => prev ? { ...prev, points: [...(prev.points || []), pos] } : null);
     } else {
@@ -166,7 +165,6 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
   const undo = () => setActions(prev => prev.slice(0, -1));
 
   const handleSave = () => {
-    // Render at full resolution
     const img = imgRef.current;
     if (!img) return;
     const canvas = document.createElement('canvas');
@@ -176,14 +174,12 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
     ctx.drawImage(img, 0, 0);
     const scaleX = img.width / canvasSize.w;
     const scaleY = img.height / canvasSize.h;
-
     actions.forEach(a => {
       ctx.strokeStyle = a.color;
       ctx.fillStyle = a.color;
       ctx.lineWidth = a.lineWidth * scaleX;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-
       if (a.tool === 'pen' && a.points && a.points.length > 1) {
         ctx.beginPath();
         ctx.moveTo(a.points[0].x * scaleX, a.points[0].y * scaleY);
@@ -219,7 +215,6 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
         ctx.fillText(a.text, a.start.x * scaleX, a.start.y * scaleY);
       }
     });
-
     onSave(canvas.toDataURL('image/jpeg', 0.85));
   };
 
@@ -235,7 +230,7 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           {tools.map(t => (
             <Button
               key={t.id}
@@ -280,7 +275,6 @@ export function ImageAnnotator({ imageDataUrl, onSave, onCancel }: ImageAnnotato
           </Button>
         </div>
       </div>
-
       {/* Canvas */}
       <div ref={containerRef} className="flex-1 flex items-center justify-center overflow-hidden p-2">
         {canvasSize.w > 0 && (
