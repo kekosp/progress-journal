@@ -26,6 +26,8 @@ export interface Report {
   signatureDataUrl?: string;
   signedBy?: string;
   signedAt?: string;
+  lostTimeHours?: number;   // manually entered lost time in hours
+  lostTimeMinutes?: number; // optionally track minutes too
 }
 
 export const CATEGORY_LABELS: Record<ReportCategory, string> = {
