@@ -5,10 +5,11 @@ import { ReportCard } from '@/components/ReportCard';
 import { ReportForm } from '@/components/ReportForm';
 import { ReportDetail } from '@/components/ReportDetail';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, ClipboardList, Filter, ArrowUpDown } from 'lucide-react';
+import { Plus, Search, ClipboardList, Filter, ArrowUpDown, CalendarDays } from 'lucide-react';
 
 type View = 'list' | 'create' | 'edit' | 'detail';
 type SortField = 'date' | 'priority' | 'status';
@@ -219,6 +220,28 @@ const Index = () => {
           ))
         )}
       </div>
+
+      {/* Bottom Nav */}
+      <nav className="fixed bottom-0 inset-x-0 bg-card border-t border-border px-4 py-2 z-20">
+        <div className="max-w-lg mx-auto flex justify-around">
+          <NavLink
+            to="/"
+            className="flex flex-col items-center gap-0.5 text-muted-foreground transition-colors"
+            activeClassName="text-primary"
+          >
+            <ClipboardList className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Reports</span>
+          </NavLink>
+          <NavLink
+            to="/calendar"
+            className="flex flex-col items-center gap-0.5 text-muted-foreground transition-colors"
+            activeClassName="text-primary"
+          >
+            <CalendarDays className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Calendar</span>
+          </NavLink>
+        </div>
+      </nav>
     </div>
   );
 };
