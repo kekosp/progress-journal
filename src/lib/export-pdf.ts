@@ -242,8 +242,8 @@ export async function exportReportToPdf(report: Report) {
 
   try {
     const base64 = doc.output('datauristring').split(',')[1];
-    await Filesystem.writeFile({ path: 'Download/' + filename, data: base64, directory: Directory.ExternalStorage, recursive: true });
-    return { saved: true, path: 'Download/' + filename };
+    await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Data, recursive: true });
+    return { saved: true, path: filename };
   } catch {
     doc.save(filename);
     return { saved: false, path: filename };

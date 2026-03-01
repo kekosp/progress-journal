@@ -76,20 +76,20 @@ export async function exportAllData(options: ExportOptions = {}): Promise<string
 
   // Write to the public Downloads directory so the user can see it in Files
   await Filesystem.writeFile({
-    path: `Download/${filename}`,
+    path: filename,
     data: json,
-    directory: Directory.ExternalStorage,
+    directory: Directory.Data,
     encoding: Encoding.UTF8,
     recursive: true,
   });
 
-  const filePath = `Download/${filename}`;
+  const filePath = filename;
 
   if (options.share) {
     // Get a content:// URI so Android apps can read it
     const uriResult = await Filesystem.getUri({
       path: filePath,
-      directory: Directory.ExternalStorage,
+      directory: Directory.Data,
     });
     await Share.share({
       title: 'Reports Backup',

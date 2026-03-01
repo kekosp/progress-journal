@@ -1,6 +1,5 @@
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-// PIN/password are never stored in plain text.
-// We store a SHA-256 hex hash + the chosen method.
+// PIN/password are stored using PBKDF2 with a random salt.
 
 const AUTH_KEY = 'app-auth';
 
@@ -8,17 +7,40 @@ export type AuthMethod = 'pin' | 'password';
 
 interface AuthStore {
   method: AuthMethod;
-  hash: string; // SHA-256 hex of the PIN or password
+  hash: string;   // hex-encoded PBKDF2 derived key
+  salt: string;   // hex-encoded random salt
 }
 
-async function sha256(text: string): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(text)
-  );
+const PBKDF2_ITERATIONS = 100_000;
+
+function bufToHex(buf: ArrayBuffer): string {
   return Array.from(new Uint8Array(buf))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+function hexToBuf(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+async function deriveKey(secret: string, salt: Uint8Array): Promise<string> {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: salt as BufferSource, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    256
+  );
+  return bufToHex(bits);
 }
 
 export function isAuthEnabled(): boolean {
@@ -36,8 +58,9 @@ export function getAuthMethod(): AuthMethod | null {
 }
 
 export async function setupAuth(method: AuthMethod, secret: string): Promise<void> {
-  const hash = await sha256(secret);
-  const store: AuthStore = { method, hash };
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await deriveKey(secret, salt);
+  const store: AuthStore = { method, hash, salt: bufToHex(salt.buffer) };
   localStorage.setItem(AUTH_KEY, JSON.stringify(store));
 }
 
@@ -46,7 +69,19 @@ export async function verifyAuth(secret: string): Promise<boolean> {
   if (!raw) return true; // no auth set up
   try {
     const store = JSON.parse(raw) as AuthStore;
-    const hash = await sha256(secret);
+    // Migration: old entries without salt used plain SHA-256
+    if (!store.salt) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
+      const oldHash = bufToHex(buf);
+      if (oldHash === store.hash) {
+        // Re-hash with PBKDF2 on successful login
+        await setupAuth(store.method, secret);
+        return true;
+      }
+      return false;
+    }
+    const salt = hexToBuf(store.salt);
+    const hash = await deriveKey(secret, salt);
     return hash === store.hash;
   } catch {
     return false;
