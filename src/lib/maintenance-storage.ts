@@ -54,3 +54,58 @@ export function toggleEventComplete(id: string): void {
 export function generateEventId(): string {
   return `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
+
+// ─── Aliases for MaintenanceForm compatibility ───────────────────────────────
+import type { MaintenanceEvent as FullMaintenanceEvent } from '@/types/maintenance';
+
+const FULL_SCHEDULE_KEY = 'maintenance-full-schedule';
+
+export function getMaintenanceEvents(): FullMaintenanceEvent[] {
+  try {
+    const data = localStorage.getItem(FULL_SCHEDULE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveMaintenanceEvent(event: FullMaintenanceEvent): void {
+  const events = getMaintenanceEvents();
+  const index = events.findIndex(e => e.id === event.id);
+  if (index >= 0) {
+    events[index] = event;
+  } else {
+    events.push(event);
+  }
+  localStorage.setItem(FULL_SCHEDULE_KEY, JSON.stringify(events));
+}
+
+export function deleteMaintenanceEvent(id: string): void {
+  const events = getMaintenanceEvents().filter(e => e.id !== id);
+  localStorage.setItem(FULL_SCHEDULE_KEY, JSON.stringify(events));
+}
+
+export function generateMaintenanceId(): string {
+  return `mnt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function getUpcomingCount(): number {
+  const now = new Date();
+  const in7 = new Date(now);
+  in7.setDate(in7.getDate() + 7);
+
+  // Count from both simple events and full maintenance events
+  const simpleCount = getEvents().filter(e => {
+    if (e.completed) return false;
+    const d = new Date(e.date);
+    return d >= now && d <= in7;
+  }).length;
+
+  const fullCount = getMaintenanceEvents().filter(e => {
+    if (e.status === 'completed') return false;
+    const d = new Date(e.date);
+    return d >= now && d <= in7;
+  }).length;
+
+  return simpleCount + fullCount;
+}
