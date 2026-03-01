@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Report, ReportCategory, ReportPriority, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/report';
 import { getReports, getReportById } from '@/lib/storage';
-import { getUpcomingCount } from '@/lib/maintenance-storage';
+import { getUpcomingCount, getDueSoonEvents } from '@/lib/maintenance-storage';
+import { toast } from '@/hooks/use-toast';
 import { ReportCard } from '@/components/ReportCard';
 import { ReportForm } from '@/components/ReportForm';
 import { ReportDetail } from '@/components/ReportDetail';
@@ -44,6 +45,29 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
     const interval = setInterval(() => setUpcomingCount(getUpcomingCount()), 30000);
     return () => clearInterval(interval);
   }, [tab]);
+
+  // Session-once toast for today/tomorrow maintenance
+  useEffect(() => {
+    const SESSION_KEY = 'maintenance-toast-shown';
+    if (sessionStorage.getItem(SESSION_KEY)) return;
+
+    const alerts = getDueSoonEvents();
+    if (alerts.length === 0) return;
+
+    sessionStorage.setItem(SESSION_KEY, '1');
+
+    const todayCount = alerts.filter(a => a.isToday).length;
+    const tomorrowCount = alerts.filter(a => !a.isToday).length;
+
+    const parts: string[] = [];
+    if (todayCount) parts.push(`${todayCount} due today`);
+    if (tomorrowCount) parts.push(`${tomorrowCount} due tomorrow`);
+
+    toast({
+      title: '🔧 Upcoming Maintenance',
+      description: parts.join(', ') + '. Tap Calendar to view details.',
+    });
+  }, []);
 
   const refresh = () => setReports(getReports());
   const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };

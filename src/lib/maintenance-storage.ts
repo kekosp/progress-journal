@@ -94,7 +94,6 @@ export function getUpcomingCount(): number {
   const in7 = new Date(now);
   in7.setDate(in7.getDate() + 7);
 
-  // Count from both simple events and full maintenance events
   const simpleCount = getEvents().filter(e => {
     if (e.completed) return false;
     const d = new Date(e.date);
@@ -108,4 +107,39 @@ export function getUpcomingCount(): number {
   }).length;
 
   return simpleCount + fullCount;
+}
+
+export interface UpcomingAlert {
+  title: string;
+  date: string;
+  priority: string;
+  isToday: boolean;
+}
+
+export function getDueSoonEvents(): UpcomingAlert[] {
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+
+  const alerts: UpcomingAlert[] = [];
+
+  getEvents().forEach(e => {
+    if (e.completed) return;
+    const d = e.date.slice(0, 10);
+    if (d === todayStr || d === tomorrowStr) {
+      alerts.push({ title: e.title, date: e.date, priority: e.priority, isToday: d === todayStr });
+    }
+  });
+
+  getMaintenanceEvents().forEach(e => {
+    if (e.status === 'completed') return;
+    const d = e.date.slice(0, 10);
+    if (d === todayStr || d === tomorrowStr) {
+      alerts.push({ title: e.title, date: e.date, priority: e.priority, isToday: d === todayStr });
+    }
+  });
+
+  return alerts;
 }
