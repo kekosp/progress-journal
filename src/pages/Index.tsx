@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Report, ReportCategory, ReportPriority, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/report';
 import { getReports, getReportById } from '@/lib/storage';
+import { getUpcomingCount } from '@/lib/maintenance-storage';
 import { ReportCard } from '@/components/ReportCard';
 import { ReportForm } from '@/components/ReportForm';
 import { ReportDetail } from '@/components/ReportDetail';
@@ -36,6 +37,13 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
   const [dateTo, setDateTo] = useState('');
   const [showTransfer, setShowTransfer] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [upcomingCount, setUpcomingCount] = useState(0);
+
+  useEffect(() => {
+    setUpcomingCount(getUpcomingCount());
+    const interval = setInterval(() => setUpcomingCount(getUpcomingCount()), 30000);
+    return () => clearInterval(interval);
+  }, [tab]);
 
   const refresh = () => setReports(getReports());
   const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -180,13 +188,20 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border">
         <div className="flex max-w-lg mx-auto">
           {([
-            { id: 'reports',   Icon: ClipboardList, label: 'Reports'   },
-            { id: 'analytics', Icon: BarChart3,      label: 'Analytics' },
-            { id: 'calendar',  Icon: Calendar,       label: 'Calendar'  },
-          ] as { id: Tab; Icon: any; label: string }[]).map(t => (
+            { id: 'reports',   Icon: ClipboardList, label: 'Reports',   badge: 0 },
+            { id: 'analytics', Icon: BarChart3,      label: 'Analytics', badge: 0 },
+            { id: 'calendar',  Icon: Calendar,       label: 'Calendar',  badge: upcomingCount },
+          ] as { id: Tab; Icon: any; label: string; badge: number }[]).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-3 relative transition-all ${tab === t.id ? 'text-primary' : 'text-muted-foreground'}`}>
-              <t.Icon className={`w-5 h-5 transition-transform ${tab === t.id ? 'scale-110' : ''}`} />
+              <div className="relative">
+                <t.Icon className={`w-5 h-5 transition-transform ${tab === t.id ? 'scale-110' : ''}`} />
+                {t.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                    {t.badge > 99 ? '99+' : t.badge}
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] font-medium">{t.label}</span>
               {tab === t.id && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />}
             </button>

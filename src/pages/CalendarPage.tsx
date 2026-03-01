@@ -1,9 +1,18 @@
+import { useState, useEffect } from 'react';
 import { MaintenanceCalendar } from '@/components/MaintenanceCalendar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NavLink } from '@/components/NavLink';
+import { getUpcomingCount } from '@/lib/maintenance-storage';
 import { CalendarDays, ClipboardList } from 'lucide-react';
 
 const CalendarPage = () => {
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  useEffect(() => {
+    setUpcomingCount(getUpcomingCount());
+    const interval = setInterval(() => setUpcomingCount(getUpcomingCount()), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -40,7 +49,14 @@ const CalendarPage = () => {
             className="flex flex-col items-center gap-0.5 text-muted-foreground transition-colors"
             activeClassName="text-primary"
           >
-            <CalendarDays className="w-5 h-5" />
+            <div className="relative">
+              <CalendarDays className="w-5 h-5" />
+              {upcomingCount > 0 && (
+                <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                  {upcomingCount > 99 ? '99+' : upcomingCount}
+                </span>
+              )}
+            </div>
             <span className="text-[10px] font-medium">Calendar</span>
           </NavLink>
         </div>
