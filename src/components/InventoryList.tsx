@@ -5,8 +5,10 @@ import { toast } from '@/hooks/use-toast';
 import { InventoryForm } from '@/components/InventoryForm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2 } from 'lucide-react';
 
@@ -18,24 +20,39 @@ export function InventoryList() {
   const [editingItem, setEditingItem] = useState<InventoryItem | undefined>();
   const [search, setSearch] = useState('');
 
+  // Return dialog state
+  const [returningItem, setReturningItem] = useState<InventoryItem | null>(null);
+  const [returnedTo, setReturnedTo] = useState('');
+
   const refresh = () => setItems(getInventoryItems());
 
   const filtered = useMemo(() => {
     let list = items;
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter(i => i.name.toLowerCase().includes(q) || i.storageLocation.toLowerCase().includes(q));
+      list = list.filter(i => i.name.toLowerCase().includes(q) || i.takenFrom.toLowerCase().includes(q));
     }
-    // in-hand first, then returned
     return [...list].sort((a, b) => {
       if (a.status !== b.status) return a.status === 'in-hand' ? -1 : 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [items, search]);
 
-  const handleReturn = (item: InventoryItem) => {
-    saveInventoryItem({ ...item, status: 'returned', returnedDate: new Date().toISOString().slice(0, 10) });
-    toast({ title: `"${item.name}" marked as returned` });
+  const handleReturnConfirm = () => {
+    if (!returningItem) return;
+    if (!returnedTo.trim()) {
+      toast({ title: 'Please enter where you put it', variant: 'destructive' });
+      return;
+    }
+    saveInventoryItem({
+      ...returningItem,
+      status: 'returned',
+      returnedDate: new Date().toISOString().slice(0, 10),
+      returnedTo: returnedTo.trim(),
+    });
+    toast({ title: `"${returningItem.name}" marked as returned` });
+    setReturningItem(null);
+    setReturnedTo('');
     refresh();
   };
 
@@ -122,7 +139,10 @@ export function InventoryList() {
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><Package className="w-3 h-3" /> Qty: {item.quantity}</span>
-                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {item.storageLocation}</span>
+                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> From: {item.takenFrom}</span>
+                      {item.returnedTo && (
+                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> To: {item.returnedTo}</span>
+                      )}
                       {item.returnByDate && (
                         <span className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> Return by {item.returnByDate}</span>
                       )}
@@ -131,7 +151,7 @@ export function InventoryList() {
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {item.status === 'in-hand' && (
-                      <Button size="sm" variant="ghost" onClick={() => handleReturn(item)} className="h-7 w-7 p-0 text-success hover:text-success" title="Mark returned">
+                      <Button size="sm" variant="ghost" onClick={() => { setReturningItem(item); setReturnedTo(''); }} className="h-7 w-7 p-0 text-success hover:text-success" title="Mark returned">
                         <RotateCcw className="w-3.5 h-3.5" />
                       </Button>
                     )}
@@ -162,6 +182,30 @@ export function InventoryList() {
           ))
         )}
       </div>
+
+      {/* Return dialog – asks where the item was put back */}
+      <Dialog open={!!returningItem} onOpenChange={open => { if (!open) setReturningItem(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Return "{returningItem?.name}"</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Where did you put it? *</Label>
+            <Input
+              value={returnedTo}
+              onChange={e => setReturnedTo(e.target.value)}
+              placeholder="e.g. Main warehouse, Shelf B2"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReturningItem(null)}>Cancel</Button>
+            <Button onClick={handleReturnConfirm} className="gap-1.5">
+              <RotateCcw className="w-4 h-4" /> Confirm Return
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

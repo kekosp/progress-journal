@@ -18,7 +18,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
   const isEdit = !!item;
   const [name, setName] = useState(item?.name ?? '');
   const [quantity, setQuantity] = useState(item?.quantity ?? 1);
-  const [storageLocation, setStorageLocation] = useState(item?.storageLocation ?? '');
+  const [takenFrom, setTakenFrom] = useState(item?.takenFrom ?? '');
   const [receivedDate, setReceivedDate] = useState(item?.receivedDate ?? new Date().toISOString().slice(0, 10));
   const [returnByDate, setReturnByDate] = useState(item?.returnByDate ?? '');
   const [notes, setNotes] = useState(item?.notes ?? '');
@@ -28,8 +28,8 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
       toast({ title: 'Item name is required', variant: 'destructive' });
       return;
     }
-    if (!storageLocation.trim()) {
-      toast({ title: 'Storage location is required', variant: 'destructive' });
+    if (!takenFrom.trim()) {
+      toast({ title: 'Taken from location is required', variant: 'destructive' });
       return;
     }
 
@@ -38,7 +38,8 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
       id: item?.id ?? generateInventoryId(),
       name: name.trim(),
       quantity,
-      storageLocation: storageLocation.trim(),
+      takenFrom: takenFrom.trim(),
+      returnedTo: item?.returnedTo,
       receivedDate,
       returnByDate: returnByDate || undefined,
       returnedDate: item?.returnedDate,
@@ -76,8 +77,8 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
             <Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value) || 1)} className="bg-card" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Storage Location *</Label>
-            <Input value={storageLocation} onChange={e => setStorageLocation(e.target.value)} placeholder="e.g. Site office" className="bg-card" />
+            <Label className="text-xs font-medium">Taken From *</Label>
+            <Input value={takenFrom} onChange={e => setTakenFrom(e.target.value)} placeholder="e.g. Main warehouse" className="bg-card" />
           </div>
         </div>
 
