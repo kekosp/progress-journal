@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Report, ReportCategory, ReportPriority, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/report';
 import { getReports, getReportById } from '@/lib/storage';
 import { getUpcomingCount, getDueSoonEvents } from '@/lib/maintenance-storage';
+import { getInventoryDueCount, getDueSoonInventory } from '@/lib/inventory-storage';
 import { toast } from '@/hooks/use-toast';
 import { ReportCard } from '@/components/ReportCard';
 import { ReportForm } from '@/components/ReportForm';
@@ -11,14 +12,15 @@ import { DataTransferModal } from '@/components/DataTransferModal';
 import { AuthSetupModal } from '@/components/AuthSetupModal';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { MaintenanceCalendar } from '@/components/MaintenanceCalendar';
+import { InventoryList } from '@/components/InventoryList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar } from 'lucide-react';
+import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package } from 'lucide-react';
 import { isAuthEnabled } from '@/lib/auth';
 
 type View = 'list' | 'create' | 'edit' | 'detail';
-type Tab = 'reports' | 'analytics' | 'calendar';
+type Tab = 'reports' | 'analytics' | 'calendar' | 'inventory';
 type SortField = 'date' | 'priority' | 'status';
 type SortDir = 'asc' | 'desc';
 
@@ -39,10 +41,15 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
   const [showTransfer, setShowTransfer] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [upcomingCount, setUpcomingCount] = useState(0);
+  const [inventoryDueCount, setInventoryDueCount] = useState(0);
 
   useEffect(() => {
     setUpcomingCount(getUpcomingCount());
-    const interval = setInterval(() => setUpcomingCount(getUpcomingCount()), 30000);
+    setInventoryDueCount(getInventoryDueCount());
+    const interval = setInterval(() => {
+      setUpcomingCount(getUpcomingCount());
+      setInventoryDueCount(getInventoryDueCount());
+    }, 30000);
     return () => clearInterval(interval);
   }, [tab]);
 
@@ -63,10 +70,28 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
     if (todayCount) parts.push(`${todayCount} due today`);
     if (tomorrowCount) parts.push(`${tomorrowCount} due tomorrow`);
 
-    toast({
-      title: '🔧 Upcoming Maintenance',
-      description: parts.join(', ') + '. Tap Calendar to view details.',
-    });
+    if (parts.length > 0) {
+      toast({
+        title: '🔧 Upcoming Maintenance',
+        description: parts.join(', ') + '. Tap Calendar to view details.',
+      });
+    }
+
+    // Inventory alerts
+    const invAlerts = getDueSoonInventory();
+    if (invAlerts.length > 0) {
+      const overdue = invAlerts.filter(a => a.isOverdue).length;
+      const invToday = invAlerts.filter(a => a.isToday).length;
+      const invTomorrow = invAlerts.filter(a => a.isTomorrow).length;
+      const invParts: string[] = [];
+      if (overdue) invParts.push(`${overdue} overdue`);
+      if (invToday) invParts.push(`${invToday} due today`);
+      if (invTomorrow) invParts.push(`${invTomorrow} due tomorrow`);
+      toast({
+        title: '📦 Inventory Returns',
+        description: invParts.join(', ') + '. Tap Inventory to review.',
+      });
+    }
   }, []);
 
   const refresh = () => setReports(getReports());
@@ -112,6 +137,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
       <div className="pb-16">
         {tab === 'analytics' && <AnalyticsDashboard />}
         {tab === 'calendar' && <MaintenanceCalendar />}
+        {tab === 'inventory' && <InventoryList />}
         {tab === 'reports' && (
           <div className="min-h-screen bg-background">
             <div className="bg-primary text-primary-foreground px-4 pt-12 pb-6">
@@ -215,6 +241,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
             { id: 'reports',   Icon: ClipboardList, label: 'Reports',   badge: 0 },
             { id: 'analytics', Icon: BarChart3,      label: 'Analytics', badge: 0 },
             { id: 'calendar',  Icon: Calendar,       label: 'Calendar',  badge: upcomingCount },
+            { id: 'inventory', Icon: Package,        label: 'Inventory', badge: inventoryDueCount },
           ] as { id: Tab; Icon: any; label: string; badge: number }[]).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-3 relative transition-all ${tab === t.id ? 'text-primary' : 'text-muted-foreground'}`}>
