@@ -41,10 +41,15 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
   const [showTransfer, setShowTransfer] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [upcomingCount, setUpcomingCount] = useState(0);
+  const [inventoryDueCount, setInventoryDueCount] = useState(0);
 
   useEffect(() => {
     setUpcomingCount(getUpcomingCount());
-    const interval = setInterval(() => setUpcomingCount(getUpcomingCount()), 30000);
+    setInventoryDueCount(getInventoryDueCount());
+    const interval = setInterval(() => {
+      setUpcomingCount(getUpcomingCount());
+      setInventoryDueCount(getInventoryDueCount());
+    }, 30000);
     return () => clearInterval(interval);
   }, [tab]);
 
