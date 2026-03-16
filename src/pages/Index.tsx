@@ -20,7 +20,7 @@ import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock,
 import { isAuthEnabled } from '@/lib/auth';
 
 type View = 'list' | 'create' | 'edit' | 'detail';
-type Tab = 'reports' | 'analytics' | 'calendar';
+type Tab = 'reports' | 'analytics' | 'calendar' | 'inventory';
 type SortField = 'date' | 'priority' | 'status';
 type SortDir = 'asc' | 'desc';
 
