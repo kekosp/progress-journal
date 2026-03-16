@@ -77,8 +77,8 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
             <Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value) || 1)} className="bg-card" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Storage Location *</Label>
-            <Input value={storageLocation} onChange={e => setStorageLocation(e.target.value)} placeholder="e.g. Site office" className="bg-card" />
+            <Label className="text-xs font-medium">Taken From *</Label>
+            <Input value={takenFrom} onChange={e => setTakenFrom(e.target.value)} placeholder="e.g. Main warehouse" className="bg-card" />
           </div>
         </div>
 

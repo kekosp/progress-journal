@@ -4,10 +4,11 @@ export interface InventoryItem {
   id: string;
   name: string;
   quantity: number;
-  storageLocation: string;
-  receivedDate: string;      // ISO date
-  returnByDate?: string;     // ISO date – optional deadline
-  returnedDate?: string;     // ISO date – when actually returned
+  takenFrom: string;          // where the item was taken from
+  returnedTo?: string;        // where the item was put back
+  receivedDate: string;       // ISO date
+  returnByDate?: string;      // ISO date – optional deadline
+  returnedDate?: string;      // ISO date – when actually returned
   status: InventoryStatus;
   notes?: string;
   createdAt: string;
