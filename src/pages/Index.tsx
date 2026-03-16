@@ -70,10 +70,28 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
     if (todayCount) parts.push(`${todayCount} due today`);
     if (tomorrowCount) parts.push(`${tomorrowCount} due tomorrow`);
 
-    toast({
-      title: '🔧 Upcoming Maintenance',
-      description: parts.join(', ') + '. Tap Calendar to view details.',
-    });
+    if (parts.length > 0) {
+      toast({
+        title: '🔧 Upcoming Maintenance',
+        description: parts.join(', ') + '. Tap Calendar to view details.',
+      });
+    }
+
+    // Inventory alerts
+    const invAlerts = getDueSoonInventory();
+    if (invAlerts.length > 0) {
+      const overdue = invAlerts.filter(a => a.isOverdue).length;
+      const invToday = invAlerts.filter(a => a.isToday).length;
+      const invTomorrow = invAlerts.filter(a => a.isTomorrow).length;
+      const invParts: string[] = [];
+      if (overdue) invParts.push(`${overdue} overdue`);
+      if (invToday) invParts.push(`${invToday} due today`);
+      if (invTomorrow) invParts.push(`${invTomorrow} due tomorrow`);
+      toast({
+        title: '📦 Inventory Returns',
+        description: invParts.join(', ') + '. Tap Inventory to review.',
+      });
+    }
   }, []);
 
   const refresh = () => setReports(getReports());
