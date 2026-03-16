@@ -18,7 +18,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
   const isEdit = !!item;
   const [name, setName] = useState(item?.name ?? '');
   const [quantity, setQuantity] = useState(item?.quantity ?? 1);
-  const [storageLocation, setStorageLocation] = useState(item?.storageLocation ?? '');
+  const [takenFrom, setTakenFrom] = useState(item?.takenFrom ?? '');
   const [receivedDate, setReceivedDate] = useState(item?.receivedDate ?? new Date().toISOString().slice(0, 10));
   const [returnByDate, setReturnByDate] = useState(item?.returnByDate ?? '');
   const [notes, setNotes] = useState(item?.notes ?? '');
