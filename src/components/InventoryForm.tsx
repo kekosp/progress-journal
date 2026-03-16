@@ -28,8 +28,8 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
       toast({ title: 'Item name is required', variant: 'destructive' });
       return;
     }
-    if (!storageLocation.trim()) {
-      toast({ title: 'Storage location is required', variant: 'destructive' });
+    if (!takenFrom.trim()) {
+      toast({ title: 'Taken from location is required', variant: 'destructive' });
       return;
     }
 
