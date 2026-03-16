@@ -241,6 +241,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
             { id: 'reports',   Icon: ClipboardList, label: 'Reports',   badge: 0 },
             { id: 'analytics', Icon: BarChart3,      label: 'Analytics', badge: 0 },
             { id: 'calendar',  Icon: Calendar,       label: 'Calendar',  badge: upcomingCount },
+            { id: 'inventory', Icon: Package,        label: 'Inventory', badge: inventoryDueCount },
           ] as { id: Tab; Icon: any; label: string; badge: number }[]).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-3 relative transition-all ${tab === t.id ? 'text-primary' : 'text-muted-foreground'}`}>
