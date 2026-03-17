@@ -140,21 +140,49 @@ export async function exportAllData(options: ExportOptions = {}): Promise<string
  * Returns number of reports actually written.
  */
 export function importData(jsonText: string, mode: ImportMode = 'merge'): number {
-  const bundle: ExportBundle = JSON.parse(jsonText);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch {
+    throw new Error('Invalid JSON file.');
+  }
 
-  if (!bundle.reports || !Array.isArray(bundle.reports)) {
+  if (typeof parsed !== 'object' || parsed === null || !('reports' in parsed)) {
     throw new Error('Invalid backup file: missing reports array.');
   }
 
+  const raw = (parsed as Record<string, unknown>).reports;
+  if (!Array.isArray(raw)) {
+    throw new Error('Invalid backup file: reports is not an array.');
+  }
+
+  // Validate each report against the schema
+  const validReports: Report[] = [];
+  const errors: string[] = [];
+
+  for (let i = 0; i < raw.length; i++) {
+    const result = reportSchema.safeParse(raw[i]);
+    if (result.success) {
+      validReports.push(result.data as Report);
+    } else {
+      const msg = result.error.issues.map(is => is.path.join('.') + ': ' + is.message).join('; ');
+      errors.push(`Report #${i + 1}: ${msg}`);
+    }
+  }
+
+  if (validReports.length === 0 && raw.length > 0) {
+    throw new Error(`All ${raw.length} report(s) failed validation. ${errors[0]}`);
+  }
+
   if (mode === 'replace') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(bundle.reports));
-    return bundle.reports.length;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(validReports));
+    return validReports.length;
   }
 
   // merge — only add reports whose IDs don't already exist
   const existing = getReports();
   const existingIds = new Set(existing.map(r => r.id));
-  const incoming = bundle.reports.filter(r => !existingIds.has(r.id));
+  const incoming = validReports.filter(r => !existingIds.has(r.id));
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...incoming, ...existing]));
   return incoming.length;
 }
