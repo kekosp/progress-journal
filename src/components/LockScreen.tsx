@@ -107,7 +107,7 @@ export function LockScreen({ onUnlocked }: Props) {
   }, [pin, method, checking, handleVerify]);
 
   function pressDigit(d: string) {
-    if (locked || pin.length >= 6) return;
+    if (isLocked || pin.length >= 6) return;
     setPin(p => p + d);
     setError('');
   }
@@ -147,7 +147,7 @@ export function LockScreen({ onUnlocked }: Props) {
         {error && (
           <div className="flex items-center gap-1.5 text-destructive text-xs">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            {locked ? `${error} (${lockTimer}s)` : error}
+            {isLocked ? `${error} (${lockTimer}s)` : error}
           </div>
         )}
 
@@ -157,7 +157,7 @@ export function LockScreen({ onUnlocked }: Props) {
             <button
               key={d}
               onClick={() => pressDigit(d)}
-              disabled={locked || pin.length >= 6}
+              disabled={isLocked || pin.length >= 6}
               className="h-16 rounded-2xl bg-card border border-border text-xl font-semibold text-foreground active:scale-95 transition-transform disabled:opacity-40 shadow-sm"
             >
               {d}
@@ -167,14 +167,14 @@ export function LockScreen({ onUnlocked }: Props) {
           <div /> {/* spacer */}
           <button
             onClick={() => pressDigit('0')}
-            disabled={locked || pin.length >= 6}
+            disabled={isLocked || pin.length >= 6}
             className="h-16 rounded-2xl bg-card border border-border text-xl font-semibold text-foreground active:scale-95 transition-transform disabled:opacity-40 shadow-sm"
           >
             0
           </button>
           <button
             onClick={backspace}
-            disabled={locked || pin.length === 0}
+            disabled={isLocked || pin.length === 0}
             className="h-16 rounded-2xl bg-card border border-border flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40 shadow-sm"
           >
             <Delete className="w-5 h-5 text-muted-foreground" />
@@ -204,7 +204,7 @@ export function LockScreen({ onUnlocked }: Props) {
             onKeyDown={e => e.key === 'Enter' && handleVerify(password)}
             placeholder="Password"
             className="pr-10 text-base h-12"
-            disabled={locked}
+            disabled={isLocked}
             autoFocus
           />
           <button
@@ -219,14 +219,14 @@ export function LockScreen({ onUnlocked }: Props) {
         {error && (
           <div className="flex items-center gap-1.5 text-destructive text-xs">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            {locked ? `${error} (${lockTimer}s)` : error}
+            {isLocked ? `${error} (${lockTimer}s)` : error}
           </div>
         )}
 
         <Button
           className="w-full h-12 text-base"
           onClick={() => handleVerify(password)}
-          disabled={!password || locked || checking}
+          disabled={!password || isLocked || checking}
         >
           {checking ? 'Checking…' : 'Unlock'}
         </Button>
