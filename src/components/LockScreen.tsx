@@ -9,6 +9,29 @@ interface Props {
 }
 
 const MAX_ATTEMPTS = 5;
+const LOCKOUT_KEY = 'lock-attempts';
+const BASE_LOCKOUT_SECONDS = 30;
+
+interface LockoutState {
+  attempts: number;
+  lockedUntil: number | null; // epoch ms
+}
+
+function getLockoutState(): LockoutState {
+  try {
+    const raw = localStorage.getItem(LOCKOUT_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return { attempts: 0, lockedUntil: null };
+}
+
+function saveLockoutState(state: LockoutState) {
+  localStorage.setItem(LOCKOUT_KEY, JSON.stringify(state));
+}
+
+function clearLockoutState() {
+  localStorage.removeItem(LOCKOUT_KEY);
+}
 
 export function LockScreen({ onUnlocked }: Props) {
   const method = getAuthMethod() as AuthMethod;
@@ -16,32 +39,37 @@ export function LockScreen({ onUnlocked }: Props) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [attempts, setAttempts] = useState(0);
-  const [locked, setLocked] = useState(false); // too many attempts
-  const [lockTimer, setLockTimer] = useState(0);
   const [checking, setChecking] = useState(false);
 
-  // Countdown timer when locked out
+  const stored = getLockoutState();
+  const [attempts, setAttempts] = useState(stored.attempts);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(stored.lockedUntil);
+
+  const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
+  const [lockTimer, setLockTimer] = useState(() =>
+    isLocked ? Math.ceil((lockedUntil! - Date.now()) / 1000) : 0
+  );
+
+  // Countdown timer
   useEffect(() => {
-    if (!locked) return;
-    setLockTimer(30);
-    const iv = setInterval(() => {
-      setLockTimer(t => {
-        if (t <= 1) {
-          clearInterval(iv);
-          setLocked(false);
-          setAttempts(0);
-          setError('');
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
+    if (!lockedUntil) return;
+    const tick = () => {
+      const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setLockTimer(0);
+        setError('');
+      } else {
+        setLockTimer(remaining);
+      }
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
     return () => clearInterval(iv);
-  }, [locked]);
+  }, [lockedUntil]);
 
   const handleVerify = useCallback(async (secret: string) => {
-    if (checking || locked || !secret) return;
+    const nowLocked = lockedUntil !== null && Date.now() < lockedUntil;
+    if (checking || nowLocked || !secret) return;
     setChecking(true);
     setError('');
 
@@ -49,6 +77,7 @@ export function LockScreen({ onUnlocked }: Props) {
     setChecking(false);
 
     if (ok) {
+      clearLockoutState();
       onUnlocked();
     } else {
       const next = attempts + 1;
@@ -56,13 +85,19 @@ export function LockScreen({ onUnlocked }: Props) {
       setPin('');
       setPassword('');
       if (next >= MAX_ATTEMPTS) {
-        setLocked(true);
-        setError(`Too many attempts. Wait 30 seconds.`);
+        // Exponential backoff: 30s, 60s, 5min, 15min...
+        const multiplier = Math.pow(2, Math.floor(next / MAX_ATTEMPTS) - 1);
+        const lockoutSeconds = Math.min(BASE_LOCKOUT_SECONDS * multiplier, 900);
+        const until = Date.now() + lockoutSeconds * 1000;
+        setLockedUntil(until);
+        saveLockoutState({ attempts: next, lockedUntil: until });
+        setError(`Too many attempts. Wait ${lockoutSeconds} seconds.`);
       } else {
-        setError(`Incorrect ${method === 'pin' ? 'PIN' : 'password'}. ${MAX_ATTEMPTS - next} attempt${MAX_ATTEMPTS - next !== 1 ? 's' : ''} left.`);
+        saveLockoutState({ attempts: next, lockedUntil: null });
+        setError(`Incorrect ${method === 'pin' ? 'PIN' : 'password'}. ${MAX_ATTEMPTS - (next % MAX_ATTEMPTS || MAX_ATTEMPTS)} attempt${MAX_ATTEMPTS - (next % MAX_ATTEMPTS || MAX_ATTEMPTS) !== 1 ? 's' : ''} left.`);
       }
     }
-  }, [checking, locked, attempts, method, onUnlocked]);
+  }, [checking, lockedUntil, attempts, method, onUnlocked]);
 
   // Auto-submit when PIN reaches required length
   useEffect(() => {
@@ -72,7 +107,7 @@ export function LockScreen({ onUnlocked }: Props) {
   }, [pin, method, checking, handleVerify]);
 
   function pressDigit(d: string) {
-    if (locked || pin.length >= 6) return;
+    if (isLocked || pin.length >= 6) return;
     setPin(p => p + d);
     setError('');
   }
@@ -112,7 +147,7 @@ export function LockScreen({ onUnlocked }: Props) {
         {error && (
           <div className="flex items-center gap-1.5 text-destructive text-xs">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            {locked ? `${error} (${lockTimer}s)` : error}
+            {isLocked ? `${error} (${lockTimer}s)` : error}
           </div>
         )}
 
@@ -122,7 +157,7 @@ export function LockScreen({ onUnlocked }: Props) {
             <button
               key={d}
               onClick={() => pressDigit(d)}
-              disabled={locked || pin.length >= 6}
+              disabled={isLocked || pin.length >= 6}
               className="h-16 rounded-2xl bg-card border border-border text-xl font-semibold text-foreground active:scale-95 transition-transform disabled:opacity-40 shadow-sm"
             >
               {d}
@@ -132,14 +167,14 @@ export function LockScreen({ onUnlocked }: Props) {
           <div /> {/* spacer */}
           <button
             onClick={() => pressDigit('0')}
-            disabled={locked || pin.length >= 6}
+            disabled={isLocked || pin.length >= 6}
             className="h-16 rounded-2xl bg-card border border-border text-xl font-semibold text-foreground active:scale-95 transition-transform disabled:opacity-40 shadow-sm"
           >
             0
           </button>
           <button
             onClick={backspace}
-            disabled={locked || pin.length === 0}
+            disabled={isLocked || pin.length === 0}
             className="h-16 rounded-2xl bg-card border border-border flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40 shadow-sm"
           >
             <Delete className="w-5 h-5 text-muted-foreground" />
@@ -169,7 +204,7 @@ export function LockScreen({ onUnlocked }: Props) {
             onKeyDown={e => e.key === 'Enter' && handleVerify(password)}
             placeholder="Password"
             className="pr-10 text-base h-12"
-            disabled={locked}
+            disabled={isLocked}
             autoFocus
           />
           <button
@@ -184,14 +219,14 @@ export function LockScreen({ onUnlocked }: Props) {
         {error && (
           <div className="flex items-center gap-1.5 text-destructive text-xs">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            {locked ? `${error} (${lockTimer}s)` : error}
+            {isLocked ? `${error} (${lockTimer}s)` : error}
           </div>
         )}
 
         <Button
           className="w-full h-12 text-base"
           onClick={() => handleVerify(password)}
-          disabled={!password || locked || checking}
+          disabled={!password || isLocked || checking}
         >
           {checking ? 'Checking…' : 'Unlock'}
         </Button>
