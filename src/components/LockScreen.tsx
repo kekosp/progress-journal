@@ -68,7 +68,8 @@ export function LockScreen({ onUnlocked }: Props) {
   }, [lockedUntil]);
 
   const handleVerify = useCallback(async (secret: string) => {
-    if (checking || locked || !secret) return;
+    const nowLocked = lockedUntil !== null && Date.now() < lockedUntil;
+    if (checking || nowLocked || !secret) return;
     setChecking(true);
     setError('');
 
@@ -76,6 +77,7 @@ export function LockScreen({ onUnlocked }: Props) {
     setChecking(false);
 
     if (ok) {
+      clearLockoutState();
       onUnlocked();
     } else {
       const next = attempts + 1;
@@ -83,13 +85,19 @@ export function LockScreen({ onUnlocked }: Props) {
       setPin('');
       setPassword('');
       if (next >= MAX_ATTEMPTS) {
-        setLocked(true);
-        setError(`Too many attempts. Wait 30 seconds.`);
+        // Exponential backoff: 30s, 60s, 5min, 15min...
+        const multiplier = Math.pow(2, Math.floor(next / MAX_ATTEMPTS) - 1);
+        const lockoutSeconds = Math.min(BASE_LOCKOUT_SECONDS * multiplier, 900);
+        const until = Date.now() + lockoutSeconds * 1000;
+        setLockedUntil(until);
+        saveLockoutState({ attempts: next, lockedUntil: until });
+        setError(`Too many attempts. Wait ${lockoutSeconds} seconds.`);
       } else {
-        setError(`Incorrect ${method === 'pin' ? 'PIN' : 'password'}. ${MAX_ATTEMPTS - next} attempt${MAX_ATTEMPTS - next !== 1 ? 's' : ''} left.`);
+        saveLockoutState({ attempts: next, lockedUntil: null });
+        setError(`Incorrect ${method === 'pin' ? 'PIN' : 'password'}. ${MAX_ATTEMPTS - (next % MAX_ATTEMPTS || MAX_ATTEMPTS)} attempt${MAX_ATTEMPTS - (next % MAX_ATTEMPTS || MAX_ATTEMPTS) !== 1 ? 's' : ''} left.`);
       }
     }
-  }, [checking, locked, attempts, method, onUnlocked]);
+  }, [checking, lockedUntil, attempts, method, onUnlocked]);
 
   // Auto-submit when PIN reaches required length
   useEffect(() => {
