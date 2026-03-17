@@ -1,9 +1,40 @@
 import { Report } from '@/types/report';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { z } from 'zod';
 
 const STORAGE_KEY = 'reports-data';
 const EXPORT_VERSION = 1;
+
+// ─── Zod schema for validating imported reports ──────────────────────────────
+
+const reportImageSchema = z.object({
+  id: z.string().max(100),
+  dataUrl: z.string().max(2_000_000), // ~1.5MB base64
+  caption: z.string().max(500).optional(),
+  timestamp: z.string(),
+  annotatedDataUrl: z.string().max(2_000_000).optional(),
+});
+
+const reportSchema = z.object({
+  id: z.string().max(100),
+  title: z.string().min(1).max(500),
+  description: z.string().max(10_000),
+  category: z.enum(['inspection', 'maintenance', 'safety', 'quality', 'progress', 'incident', 'other']),
+  priority: z.enum(['low', 'medium', 'high', 'critical']),
+  status: z.enum(['draft', 'in-progress', 'completed', 'archived']),
+  images: z.array(reportImageSchema).max(50),
+  notes: z.string().max(5_000),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  projectName: z.string().max(300).optional(),
+  location: z.string().max(300).optional(),
+  signatureDataUrl: z.string().max(500_000).optional(),
+  signedBy: z.string().max(200).optional(),
+  signedAt: z.string().optional(),
+  lostTimeHours: z.number().min(0).max(9999).optional(),
+  lostTimeMinutes: z.number().min(0).max(59).optional(),
+}).strict();
 
 // ─── Core CRUD ────────────────────────────────────────────────────────────────
 
