@@ -9,6 +9,29 @@ interface Props {
 }
 
 const MAX_ATTEMPTS = 5;
+const LOCKOUT_KEY = 'lock-attempts';
+const BASE_LOCKOUT_SECONDS = 30;
+
+interface LockoutState {
+  attempts: number;
+  lockedUntil: number | null; // epoch ms
+}
+
+function getLockoutState(): LockoutState {
+  try {
+    const raw = localStorage.getItem(LOCKOUT_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return { attempts: 0, lockedUntil: null };
+}
+
+function saveLockoutState(state: LockoutState) {
+  localStorage.setItem(LOCKOUT_KEY, JSON.stringify(state));
+}
+
+function clearLockoutState() {
+  localStorage.removeItem(LOCKOUT_KEY);
+}
 
 export function LockScreen({ onUnlocked }: Props) {
   const method = getAuthMethod() as AuthMethod;
@@ -16,29 +39,33 @@ export function LockScreen({ onUnlocked }: Props) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [attempts, setAttempts] = useState(0);
-  const [locked, setLocked] = useState(false); // too many attempts
-  const [lockTimer, setLockTimer] = useState(0);
   const [checking, setChecking] = useState(false);
 
-  // Countdown timer when locked out
+  const stored = getLockoutState();
+  const [attempts, setAttempts] = useState(stored.attempts);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(stored.lockedUntil);
+
+  const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
+  const [lockTimer, setLockTimer] = useState(() =>
+    isLocked ? Math.ceil((lockedUntil! - Date.now()) / 1000) : 0
+  );
+
+  // Countdown timer
   useEffect(() => {
-    if (!locked) return;
-    setLockTimer(30);
-    const iv = setInterval(() => {
-      setLockTimer(t => {
-        if (t <= 1) {
-          clearInterval(iv);
-          setLocked(false);
-          setAttempts(0);
-          setError('');
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
+    if (!lockedUntil) return;
+    const tick = () => {
+      const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setLockTimer(0);
+        setError('');
+      } else {
+        setLockTimer(remaining);
+      }
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
     return () => clearInterval(iv);
-  }, [locked]);
+  }, [lockedUntil]);
 
   const handleVerify = useCallback(async (secret: string) => {
     if (checking || locked || !secret) return;
