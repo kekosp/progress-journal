@@ -95,7 +95,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
 
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Notes</Label>
-          <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any extra details..." rows={3} className="bg-card" />
+          <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any extra details..." rows={3} className="bg-card" maxLength={2000} />
         </div>
 
         <Button onClick={handleSave} className="w-full gap-2">

@@ -342,7 +342,7 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</Label>
           <Textarea value={notes} onChange={e => setNotes(e.target.value)}
             placeholder="Additional notes..."
-            className="bg-card border-border text-sm min-h-[80px] resize-none" />
+            className="bg-card border-border text-sm min-h-[80px] resize-none" maxLength={5000} />
         </div>
 
         {/* Digital Signature */}
