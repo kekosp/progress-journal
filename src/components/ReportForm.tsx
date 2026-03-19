@@ -141,7 +141,7 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Project</Label>
             <Input value={projectName} onChange={e => setProjectName(e.target.value)}
-              placeholder="Project name..." className="bg-card border-border text-xs" />
+              placeholder="Project name..." className="bg-card border-border text-xs" maxLength={200} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Location</Label>
