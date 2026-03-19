@@ -278,7 +278,7 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</Label>
           <Textarea value={description} onChange={e => setDescription(e.target.value)}
             placeholder="Describe the report..."
-            className="bg-card border-border text-sm min-h-[100px] resize-none" />
+            className="bg-card border-border text-sm min-h-[100px] resize-none" maxLength={5000} />
         </div>
 
         {/* Images */}
