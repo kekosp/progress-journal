@@ -300,6 +300,7 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
                       prev.map(i => i.id === img.id ? { ...i, caption: e.target.value } : i)
                     )}
                     placeholder="Caption..."
+                    maxLength={200}
                     className="w-full text-[10px] px-1.5 py-1 bg-card border-t border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <div className="absolute top-1 right-1 flex gap-1">
