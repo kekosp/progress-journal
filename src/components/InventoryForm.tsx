@@ -78,7 +78,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Taken From *</Label>
-            <Input value={takenFrom} onChange={e => setTakenFrom(e.target.value)} placeholder="e.g. Main warehouse" className="bg-card" />
+            <Input value={takenFrom} onChange={e => setTakenFrom(e.target.value)} placeholder="e.g. Main warehouse" className="bg-card" maxLength={200} />
           </div>
         </div>
 
