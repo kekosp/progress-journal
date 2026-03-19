@@ -133,7 +133,7 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Title *</Label>
           <Input value={title} onChange={e => setTitle(e.target.value)}
-            placeholder="Report title..." className="bg-card border-border text-sm" />
+            placeholder="Report title..." className="bg-card border-border text-sm" maxLength={500} />
         </div>
 
         {/* Project & Location */}
@@ -141,12 +141,12 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Project</Label>
             <Input value={projectName} onChange={e => setProjectName(e.target.value)}
-              placeholder="Project name..." className="bg-card border-border text-xs" />
+              placeholder="Project name..." className="bg-card border-border text-xs" maxLength={200} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Location</Label>
             <Input value={location} onChange={e => setLocation(e.target.value)}
-              placeholder="Site location..." className="bg-card border-border text-xs" />
+              placeholder="Site location..." className="bg-card border-border text-xs" maxLength={200} />
           </div>
         </div>
 
@@ -278,7 +278,7 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</Label>
           <Textarea value={description} onChange={e => setDescription(e.target.value)}
             placeholder="Describe the report..."
-            className="bg-card border-border text-sm min-h-[100px] resize-none" />
+            className="bg-card border-border text-sm min-h-[100px] resize-none" maxLength={5000} />
         </div>
 
         {/* Images */}
@@ -300,6 +300,7 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
                       prev.map(i => i.id === img.id ? { ...i, caption: e.target.value } : i)
                     )}
                     placeholder="Caption..."
+                    maxLength={200}
                     className="w-full text-[10px] px-1.5 py-1 bg-card border-t border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <div className="absolute top-1 right-1 flex gap-1">
@@ -341,7 +342,7 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</Label>
           <Textarea value={notes} onChange={e => setNotes(e.target.value)}
             placeholder="Additional notes..."
-            className="bg-card border-border text-sm min-h-[80px] resize-none" />
+            className="bg-card border-border text-sm min-h-[80px] resize-none" maxLength={5000} />
         </div>
 
         {/* Digital Signature */}

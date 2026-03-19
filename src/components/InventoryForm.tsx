@@ -68,7 +68,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
       <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Item Name *</Label>
-          <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Angle grinder" className="bg-card" />
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Angle grinder" className="bg-card" maxLength={200} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -78,7 +78,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Taken From *</Label>
-            <Input value={takenFrom} onChange={e => setTakenFrom(e.target.value)} placeholder="e.g. Main warehouse" className="bg-card" />
+            <Input value={takenFrom} onChange={e => setTakenFrom(e.target.value)} placeholder="e.g. Main warehouse" className="bg-card" maxLength={200} />
           </div>
         </div>
 
@@ -95,7 +95,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
 
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Notes</Label>
-          <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any extra details..." rows={3} className="bg-card" />
+          <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any extra details..." rows={3} className="bg-card" maxLength={2000} />
         </div>
 
         <Button onClick={handleSave} className="w-full gap-2">
