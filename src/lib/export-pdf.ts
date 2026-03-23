@@ -18,6 +18,7 @@ const C: Record<string, RGB> = {
   red:    [239, 68, 68],
   yellow: [234, 179, 8],
   bg:     [248, 249, 252],
+  accentLight: [219, 234, 254],
 };
 
 const PRIORITY_COLOR: Record<string, RGB> = {
@@ -28,25 +29,35 @@ const STATUS_COLOR: Record<string, RGB> = {
 };
 
 function setFill(doc: jsPDF, c: RGB) { doc.setFillColor(c[0], c[1], c[2]); }
-function setTxt(doc: jsPDF, c: RGB)  { doc.setTextColor(c[0], c[1], c[2]); }
-function setDrw(doc: jsPDF, c: RGB)  { doc.setDrawColor(c[0], c[1], c[2]); }
+function setTxt(doc: jsPDF, c: RGB) { doc.setTextColor(c[0], c[1], c[2]); }
+function setDrw(doc: jsPDF, c: RGB) { doc.setDrawColor(c[0], c[1], c[2]); }
 
 function pill(doc: jsPDF, text: string, x: number, y: number, color: RGB) {
-  const w = doc.getTextWidth(text) + 6;
+  const w = doc.getTextWidth(text) + 8;
   setFill(doc, color);
-  doc.roundedRect(x, y - 4.5, w, 6.5, 1.5, 1.5, 'F');
+  doc.roundedRect(x, y - 5, w, 7.5, 2, 2, 'F');
   setTxt(doc, C.white);
-  doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-  doc.text(text, x + 3, y);
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+  doc.text(text, x + 4, y);
   return w + 3;
 }
 
-function fmtHours(h: number): string {
+function fmtHours(h: number, m?: number): string {
   const hours = Math.floor(h);
-  const mins = Math.round((h - hours) * 60);
+  const mins = m ?? Math.round((h - hours) * 60);
   if (hours === 0) return mins + 'm';
   if (mins === 0) return hours + 'h';
   return hours + 'h ' + mins + 'm';
+}
+
+/** Try to get image dimensions from a data URL to compute aspect ratio */
+function getImageAspect(dataUrl: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => resolve({ w: 4, h: 3 }); // fallback 4:3
+    img.src = dataUrl;
+  });
 }
 
 export async function exportReportToPdf(report: Report) {
@@ -56,188 +67,324 @@ export async function exportReportToPdf(report: Report) {
   const M = 16;
   const CW = PW - M * 2;
   let y = M;
-  const tocEntries: { title: string; page: number }[] = [];
+  const tocEntries: { title: string; page: number; num: string }[] = [];
+  let sectionNum = 0;
 
-  const drawFooter = (pg: number, total?: number) => {
-    setDrw(doc, C.muted); doc.line(M, PH - 10, PW - M, PH - 10);
+  const drawFooter = (pg: number, total: number) => {
+    setDrw(doc, C.muted); doc.line(M, PH - 12, PW - M, PH - 12);
     doc.setFontSize(7); setTxt(doc, C.light); doc.setFont('helvetica', 'normal');
-    doc.text('Report ID: ' + report.id, M, PH - 5.5);
-    if (total) doc.text(pg + ' / ' + total, PW - M, PH - 5.5, { align: 'right' });
+    doc.text(report.title, M, PH - 7, { maxWidth: CW * 0.6 });
+    doc.text('Page ' + pg + ' of ' + total, PW - M, PH - 7, { align: 'right' });
   };
 
   const check = (needed: number) => {
-    if (y + needed > PH - M - 10) { doc.addPage(); y = M; }
+    if (y + needed > PH - M - 14) { doc.addPage(); y = M; }
   };
 
   const section = (title: string) => {
-    check(16);
-    tocEntries.push({ title, page: doc.getNumberOfPages() });
-    setFill(doc, C.accent); doc.rect(M, y, 3, 9, 'F');
-    doc.setFontSize(12); doc.setFont('helvetica', 'bold'); setTxt(doc, C.navy);
-    doc.text(title, M + 6, y + 6.5);
-    setDrw(doc, C.muted); doc.line(M + 6, y + 9, PW - M, y + 9);
-    y += 14;
+    check(18);
+    sectionNum++;
+    const num = String(sectionNum);
+    tocEntries.push({ title, page: doc.getNumberOfPages(), num });
+
+    // Accent bar + number circle
+    setFill(doc, C.navy);
+    doc.circle(M + 4, y + 4, 4, 'F');
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+    doc.text(num, M + 4, y + 5.5, { align: 'center' });
+
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); setTxt(doc, C.navy);
+    doc.text(title, M + 12, y + 6);
+    setFill(doc, C.accent); doc.rect(M + 12, y + 8, 20, 0.8, 'F');
+    y += 16;
   };
 
-  // PAGE 1 — COVER
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COVER PAGE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Full navy background
   setFill(doc, C.navy); doc.rect(0, 0, PW, PH, 'F');
-  setFill(doc, C.accent); doc.rect(0, PH * 0.58, PW, 1.5, 'F');
 
-  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); setTxt(doc, C.accent);
-  doc.text(CATEGORY_LABELS[report.category].toUpperCase(), M, 28);
+  // Decorative accent stripe at top
+  setFill(doc, C.accent); doc.rect(0, 0, PW, 4, 'F');
 
-  doc.setFontSize(24); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
-  const titleLines: string[] = doc.splitTextToSize(report.title, CW);
-  let cy = 42;
-  titleLines.forEach((l: string) => { doc.text(l, M, cy); cy += 10; });
+  // Category label
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); setTxt(doc, C.accent);
+  doc.text(CATEGORY_LABELS[report.category].toUpperCase(), M, 34);
 
+  // Decorative line under category
+  setFill(doc, C.accent); doc.rect(M, 37, 30, 0.6, 'F');
+
+  // Title
+  doc.setFontSize(28); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+  const titleLines: string[] = doc.splitTextToSize(report.title, CW - 10);
+  let cy = 52;
+  titleLines.forEach((l: string) => { doc.text(l, M, cy); cy += 12; });
+
+  // Pills row
+  cy += 4;
   let cx = M;
   const chips: [string, RGB][] = [
     [PRIORITY_LABELS[report.priority], PRIORITY_COLOR[report.priority]],
     [STATUS_LABELS[report.status], STATUS_COLOR[report.status]],
   ];
-  if (report.lostTimeHours && report.lostTimeHours > 0) {
-    chips.push([fmtHours(report.lostTimeHours) + ' lost', C.orange]);
+  const totalLostTime = (report.lostTimeHours ?? 0) + (report.lostTimeMinutes ?? 0) / 60;
+  if (totalLostTime > 0) {
+    chips.push([fmtHours(report.lostTimeHours ?? 0, report.lostTimeMinutes) + ' lost', C.orange]);
   }
-  chips.forEach(([label, color]) => { cx += pill(doc, label, cx, cy + 5, color); });
+  doc.setFontSize(7.5);
+  chips.forEach(([label, color]) => { cx += pill(doc, label, cx, cy, color); });
 
-  const infoY = PH * 0.64;
+  // Horizontal divider
+  const divY = PH * 0.52;
+  setFill(doc, C.accent); doc.rect(M, divY, CW, 0.5, 'F');
+
+  // Info rows in a structured card
+  const cardY = divY + 10;
+  setFill(doc, [25, 36, 60]); // slightly lighter than navy
+  doc.roundedRect(M, cardY, CW, 60, 3, 3, 'F');
+
   const infoRows: [string, string][] = [
     ['Date', format(new Date(report.createdAt), 'MMMM d, yyyy')],
     ['Time', format(new Date(report.createdAt), 'HH:mm')],
-    ...(report.projectName ? [['Project', report.projectName] as [string,string]] : []),
-    ...(report.location   ? [['Location', report.location]   as [string,string]] : []),
-    ...(report.lostTimeHours && report.lostTimeHours > 0 ? [['Lost Time', fmtHours(report.lostTimeHours)] as [string,string]] : []),
-    ...(report.signedBy   ? [['Signed by', report.signedBy]  as [string,string]] : []),
+    ...(report.projectName ? [['Project', report.projectName] as [string, string]] : []),
+    ...(report.location ? [['Location', report.location] as [string, string]] : []),
+    ...(totalLostTime > 0 ? [['Lost Time', fmtHours(report.lostTimeHours ?? 0, report.lostTimeMinutes)] as [string, string]] : []),
+    ...(report.signedBy ? [['Signed by', report.signedBy] as [string, string]] : []),
   ];
   doc.setFont('helvetica', 'normal');
   infoRows.forEach(([label, value], i) => {
-    doc.setFontSize(7); setTxt(doc, C.light); doc.text(label, M, infoY + i * 7);
-    doc.setFontSize(9); setTxt(doc, C.white); doc.text(value, M + 30, infoY + i * 7);
+    const rowY = cardY + 10 + i * 8;
+    doc.setFontSize(7.5); setTxt(doc, C.accent); doc.text(label.toUpperCase(), M + 8, rowY);
+    doc.setFontSize(10); setTxt(doc, C.white); doc.text(value, M + 38, rowY);
   });
 
+  // Image count & report ID at bottom
   if (report.images.length > 0) {
     doc.setFontSize(8); setTxt(doc, C.accent);
-    doc.text(report.images.length + ' image' + (report.images.length !== 1 ? 's' : '') + ' attached', PW - M, PH - 16, { align: 'right' });
+    doc.text(report.images.length + ' image' + (report.images.length !== 1 ? 's' : '') + ' attached', PW - M, PH - 20, { align: 'right' });
   }
+  doc.setFontSize(6.5); setTxt(doc, C.light);
+  doc.text('ID: ' + report.id, M, PH - 12);
+  doc.text('Generated ' + format(new Date(), 'yyyy-MM-dd HH:mm'), PW - M, PH - 12, { align: 'right' });
 
-  // PAGE 2 — TOC placeholder
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TOC PAGE (placeholder — filled after content)
+  // ═══════════════════════════════════════════════════════════════════════════
   doc.addPage();
   const tocPage = doc.getNumberOfPages();
 
-  // CONTENT
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONTENT PAGES
+  // ═══════════════════════════════════════════════════════════════════════════
   doc.addPage(); y = M;
 
-  // Description
+  // — Description —
   if (report.description) {
     section('Description');
     doc.setFontSize(10); doc.setFont('helvetica', 'normal'); setTxt(doc, C.dark);
     const lines: string[] = doc.splitTextToSize(report.description, CW);
     lines.forEach((l: string) => { check(6); doc.text(l, M, y); y += 5.5; });
-    y += 5;
+    y += 8;
   }
 
-  // Lost Time section
-  if (report.lostTimeHours && report.lostTimeHours > 0) {
+  // — Lost Time —
+  if (totalLostTime > 0) {
     section('Lost Time');
-    check(28);
-    // Orange box
-    setFill(doc, [255, 237, 213]); // orange-100 equivalent
-    doc.roundedRect(M, y - 2, CW, 22, 2, 2, 'F');
-    setDrw(doc, C.orange); doc.roundedRect(M, y - 2, CW, 22, 2, 2, 'D');
-    setFill(doc, C.orange); doc.rect(M, y - 2, 3, 22, 'F');
+    check(30);
+    // Orange card
+    setFill(doc, [255, 237, 213]);
+    doc.roundedRect(M, y - 2, CW, 24, 3, 3, 'F');
+    setDrw(doc, C.orange); doc.roundedRect(M, y - 2, CW, 24, 3, 3, 'D');
+    setFill(doc, C.orange); doc.rect(M, y - 2, 4, 24, 'F');
 
-    doc.setFontSize(22); doc.setFont('helvetica', 'bold'); setTxt(doc, C.orange);
-    doc.text(fmtHours(report.lostTimeHours), M + 8, y + 10);
+    doc.setFontSize(24); doc.setFont('helvetica', 'bold'); setTxt(doc, C.orange);
+    doc.text(fmtHours(report.lostTimeHours ?? 0, report.lostTimeMinutes), M + 10, y + 11);
 
     doc.setFontSize(9); doc.setFont('helvetica', 'normal'); setTxt(doc, C.mid);
-    doc.text('Recorded downtime / delay for this incident', M + 8, y + 16);
-
-    y += 26;
+    doc.text('Recorded downtime / delay for this incident', M + 10, y + 18);
+    y += 30;
   }
 
-  // Attachments
+  // — Attachments (2-column grid for ≥2 images, full-width for 1) —
   if (report.images.length > 0) {
-    section('Attachments  (' + report.images.length + ')');
-    for (let i = 0; i < report.images.length; i++) {
-      const img = report.images[i];
-      const src = img.annotatedDataUrl || img.dataUrl;
-      const imgH = 85;
-      check(imgH + 14);
-      try {
-        doc.addImage(src, 'JPEG', M, y, CW, imgH);
-        if (img.annotatedDataUrl) {
-          setFill(doc, C.accent); doc.roundedRect(M + 2, y + 2, 24, 7, 2, 2, 'F');
-          doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
-          doc.text('ANNOTATED', M + 4, y + 6.5);
+    section('Attachments (' + report.images.length + ')');
+
+    const useGrid = report.images.length >= 2;
+    const colW = useGrid ? (CW - 4) / 2 : CW;
+    const colPositions = useGrid ? [M, M + colW + 4] : [M];
+
+    // Pre-load all image aspect ratios
+    const aspects = await Promise.all(
+      report.images.map(img => getImageAspect(img.annotatedDataUrl || img.dataUrl))
+    );
+
+    if (useGrid) {
+      // 2-column grid layout
+      let col = 0;
+      let rowStartY = y;
+      let maxRowH = 0;
+
+      for (let i = 0; i < report.images.length; i++) {
+        const img = report.images[i];
+        const src = img.annotatedDataUrl || img.dataUrl;
+        const aspect = aspects[i];
+        const imgH = Math.min((colW * aspect.h) / aspect.w, 65); // cap height
+        const cellH = imgH + (img.caption ? 10 : 4);
+
+        if (col === 0) {
+          check(cellH + 4);
+          rowStartY = y;
+          maxRowH = 0;
         }
-      } catch { /* skip */ }
-      y += imgH + 2;
-      doc.setFontSize(8); doc.setFont('helvetica', 'normal'); setTxt(doc, C.mid);
-      if (img.caption) doc.text(img.caption, M, y + 4);
-      setTxt(doc, C.light);
-      doc.text((i + 1) + ' / ' + report.images.length, PW - M, y + 4, { align: 'right' });
-      setDrw(doc, C.muted); doc.line(M, y + 6, PW - M, y + 6);
-      y += 10;
+
+        const xPos = colPositions[col];
+
+        try {
+          doc.addImage(src, 'JPEG', xPos, y, colW, imgH);
+          if (img.annotatedDataUrl) {
+            setFill(doc, C.accent);
+            doc.roundedRect(xPos + 1.5, y + 1.5, 18, 5.5, 1.5, 1.5, 'F');
+            doc.setFontSize(5.5); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+            doc.text('ANNOTATED', xPos + 3, y + 5);
+          }
+        } catch { /* skip broken images */ }
+
+        // Caption below image
+        if (img.caption) {
+          doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setTxt(doc, C.mid);
+          const captionLines: string[] = doc.splitTextToSize(img.caption, colW - 2);
+          captionLines.slice(0, 2).forEach((cl: string, ci: number) => {
+            doc.text(cl, xPos + 1, y + imgH + 4 + ci * 3.5);
+          });
+        }
+
+        // Image number
+        doc.setFontSize(6); setTxt(doc, C.light);
+        doc.text(String(i + 1), xPos + colW - 1, y + imgH + 4, { align: 'right' });
+
+        maxRowH = Math.max(maxRowH, cellH);
+        col++;
+
+        if (col >= 2 || i === report.images.length - 1) {
+          y = rowStartY + maxRowH + 6;
+          col = 0;
+        }
+      }
+    } else {
+      // Single image — full width
+      for (let i = 0; i < report.images.length; i++) {
+        const img = report.images[i];
+        const src = img.annotatedDataUrl || img.dataUrl;
+        const aspect = aspects[i];
+        const imgH = Math.min((CW * aspect.h) / aspect.w, 90);
+        check(imgH + 14);
+        try {
+          doc.addImage(src, 'JPEG', M, y, CW, imgH);
+          if (img.annotatedDataUrl) {
+            setFill(doc, C.accent);
+            doc.roundedRect(M + 2, y + 2, 22, 6, 1.5, 1.5, 'F');
+            doc.setFontSize(6); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+            doc.text('ANNOTATED', M + 4, y + 6);
+          }
+        } catch { /* skip */ }
+        y += imgH + 2;
+        doc.setFontSize(8); doc.setFont('helvetica', 'normal'); setTxt(doc, C.mid);
+        if (img.caption) doc.text(img.caption, M, y + 4, { maxWidth: CW });
+        y += img.caption ? 8 : 4;
+      }
     }
+    y += 4;
   }
 
-  // Notes
+  // — Notes —
   if (report.notes) {
     section('Notes');
-    const noteLines: string[] = doc.splitTextToSize(report.notes, CW - 8);
-    const boxH = noteLines.length * 5.5 + 10;
+    const noteLines: string[] = doc.splitTextToSize(report.notes, CW - 12);
+    const boxH = noteLines.length * 5.5 + 12;
     check(boxH + 4);
-    setFill(doc, C.bg); doc.roundedRect(M, y - 2, CW, boxH, 2, 2, 'F');
-    setDrw(doc, C.muted); doc.roundedRect(M, y - 2, CW, boxH, 2, 2, 'D');
+    setFill(doc, C.bg); doc.roundedRect(M, y - 2, CW, boxH, 3, 3, 'F');
+    setDrw(doc, C.muted); doc.roundedRect(M, y - 2, CW, boxH, 3, 3, 'D');
+    setFill(doc, C.accent); doc.rect(M, y - 2, 3, boxH, 'F');
     doc.setFontSize(10); doc.setFont('helvetica', 'normal'); setTxt(doc, C.dark);
-    noteLines.forEach((l: string) => { doc.text(l, M + 5, y + 5); y += 5.5; });
-    y += 10;
+    noteLines.forEach((l: string) => { doc.text(l, M + 8, y + 5); y += 5.5; });
+    y += 12;
   }
 
-  // Signature
+  // — Signature —
   if (report.signatureDataUrl) {
     section('Digital Signature');
-    check(42);
-    try { doc.addImage(report.signatureDataUrl, 'PNG', M, y, 72, 26); } catch { /* skip */ }
-    y += 28;
-    setDrw(doc, C.mid); doc.line(M, y, M + 72, y); y += 5;
+    check(48);
+    // Signature card
+    setFill(doc, C.bg); doc.roundedRect(M, y - 2, CW, 42, 3, 3, 'F');
+    setDrw(doc, C.muted); doc.roundedRect(M, y - 2, CW, 42, 3, 3, 'D');
+
+    try { doc.addImage(report.signatureDataUrl, 'PNG', M + 8, y + 2, 68, 22); } catch { /* skip */ }
+    y += 26;
+    setDrw(doc, C.mid); doc.line(M + 8, y, M + 76, y); y += 4;
     if (report.signedBy) {
       doc.setFontSize(10); doc.setFont('helvetica', 'bold'); setTxt(doc, C.dark);
-      doc.text(report.signedBy, M, y); y += 5;
+      doc.text(report.signedBy, M + 8, y); y += 5;
     }
     if (report.signedAt) {
       doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); setTxt(doc, C.mid);
-      doc.text('Signed: ' + format(new Date(report.signedAt), 'MMMM d, yyyy  HH:mm'), M, y);
+      doc.text('Signed: ' + format(new Date(report.signedAt), 'MMMM d, yyyy  HH:mm'), M + 8, y);
     }
+    y += 12;
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
   // FILL TABLE OF CONTENTS
+  // ═══════════════════════════════════════════════════════════════════════════
   doc.setPage(tocPage);
-  setFill(doc, C.navy); doc.rect(0, 0, PW, 30, 'F');
-  doc.setFontSize(16); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
-  doc.text('Table of Contents', M, 20);
-  let ty = 44;
+
+  // Header bar
+  setFill(doc, C.navy); doc.rect(0, 0, PW, 32, 'F');
+  setFill(doc, C.accent); doc.rect(0, 32, PW, 1.2, 'F');
+  doc.setFontSize(18); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+  doc.text('Table of Contents', M, 22);
+
+  let ty = 48;
   tocEntries.forEach((entry, i) => {
-    if (i % 2 === 0) { setFill(doc, C.bg); doc.rect(M, ty - 5.5, CW, 9, 'F'); }
+    // Alternating row bg
+    if (i % 2 === 0) { setFill(doc, C.bg); doc.rect(M, ty - 6, CW, 11, 'F'); }
+
+    // Section number circle
+    setFill(doc, C.accent);
+    doc.circle(M + 5, ty - 1, 3.5, 'F');
+    doc.setFontSize(7); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+    doc.text(entry.num, M + 5, ty + 0.5, { align: 'center' });
+
+    // Title
     doc.setFontSize(10); doc.setFont('helvetica', 'normal'); setTxt(doc, C.dark);
-    doc.text(entry.title, M + 3, ty);
-    const pageLabel = 'p. ' + entry.page;
+    doc.text(entry.title, M + 13, ty);
+
+    // Dot leaders
+    const pageLabel = String(entry.page);
     doc.setFontSize(7); setTxt(doc, C.muted);
-    let dx = M + 3 + doc.getTextWidth(entry.title) + 2;
-    const stopX = PW - M - doc.getTextWidth(pageLabel) - 3;
+    let dx = M + 13 + doc.getTextWidth(entry.title) + 3;
+    const stopX = PW - M - doc.getTextWidth(pageLabel) - 6;
     while (dx < stopX) { doc.text('.', dx, ty); dx += 2.5; }
+
+    // Page number
     doc.setFontSize(10); doc.setFont('helvetica', 'bold'); setTxt(doc, C.accent);
-    doc.text(pageLabel, PW - M, ty, { align: 'right' });
-    ty += 10;
+    doc.text(pageLabel, PW - M - 2, ty, { align: 'right' });
+
+    ty += 12;
   });
 
-  // Footers
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FOOTERS
+  // ═══════════════════════════════════════════════════════════════════════════
   const total = doc.getNumberOfPages();
   for (let i = 2; i <= total; i++) {
     doc.setPage(i); drawFooter(i, total);
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAVE
+  // ═══════════════════════════════════════════════════════════════════════════
   const filename = 'Report_' + report.title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30) + '_' + format(new Date(report.createdAt), 'yyyyMMdd') + '.pdf';
 
   try {
