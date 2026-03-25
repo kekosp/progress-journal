@@ -92,7 +92,7 @@ export async function exportReportToPdf(report: Report) {
   let sectionNum = 0;
 
   // Register Arabic fonts
-  registerArabicFonts(doc);
+  await registerArabicFonts(doc);
 
   // Detect if report content is primarily Arabic
   const isRTL = hasArabic(report.title) || hasArabic(report.description);
