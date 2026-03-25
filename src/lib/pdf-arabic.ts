@@ -7,8 +7,13 @@ export function hasArabic(text: string): boolean {
   return ARABIC_RANGE.test(text);
 }
 
-/** Register Amiri Arabic fonts on a jsPDF instance */
-export function registerArabicFonts(doc: jsPDF) {
+/** Register Amiri Arabic fonts on a jsPDF instance (lazy-loaded) */
+export async function registerArabicFonts(doc: jsPDF) {
+  const [{ amiriRegularBase64 }, { amiriBoldBase64 }] = await Promise.all([
+    import('./amiri-regular-font'),
+    import('./amiri-bold-font'),
+  ]);
+
   doc.addFileToVFS('Amiri-Regular.ttf', amiriRegularBase64);
   doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
 
