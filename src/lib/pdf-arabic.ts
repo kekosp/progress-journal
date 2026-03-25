@@ -1,6 +1,4 @@
 import jsPDF from 'jspdf';
-import { amiriRegularBase64 } from './amiri-regular-font';
-import { amiriBoldBase64 } from './amiri-bold-font';
 
 const ARABIC_RANGE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 
