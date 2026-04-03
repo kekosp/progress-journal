@@ -1,48 +1,22 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { getReports } from '@/lib/storage';
 import { Report, ReportPriority, PRIORITY_LABELS, CATEGORY_LABELS, ReportCategory } from '@/types/report';
 import { format, parseISO, startOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
 import { TrendingUp, Clock, AlertTriangle, CheckCircle2, BarChart3, Activity } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+  BarChart, Bar as ReBar, 
+} from 'recharts';
 
-// ─── Tiny inline bar ─────────────────────────────────────────────────────────
-function Bar({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = max === 0 ? 0 : Math.round((value / max) * 100);
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs text-muted-foreground w-6 text-right">{value}</span>
-    </div>
-  );
-}
-
-// ─── Sparkline (SVG) ─────────────────────────────────────────────────────────
-function Sparkline({ data, color = '#60a5fa' }: { data: number[]; color?: string }) {
-  if (data.length < 2) return null;
-  const max = Math.max(...data, 1);
-  const w = 100, h = 36;
-  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - (v / max) * h}`).join(' ');
-  const area = `0,${h} ${pts} ${w},${h}`;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-9" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={area} fill="url(#sparkGrad)" />
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-const PRIORITY_COLORS: Record<ReportPriority, string> = {
-  low: 'bg-blue-400', medium: 'bg-yellow-400', high: 'bg-orange-500', critical: 'bg-red-500',
+const PRIORITY_CHART_COLORS: Record<ReportPriority, string> = {
+  low: '#60a5fa', medium: '#eab308', high: '#f97316', critical: '#ef4444',
 };
-const PRIORITY_TEXT: Record<ReportPriority, string> = {
-  low: 'text-blue-500', medium: 'text-yellow-500', high: 'text-orange-500', critical: 'text-red-500',
+
+const CATEGORY_CHART_COLORS = ['#60a5fa', '#34d399', '#f97316', '#a78bfa', '#f472b6', '#facc15', '#94a3b8'];
+
+const PRIORITY_COLORS_TW: Record<ReportPriority, string> = {
+  low: 'bg-blue-400', medium: 'bg-yellow-400', high: 'bg-orange-500', critical: 'bg-red-500',
 };
 
 function fmtHours(h: number): string {
@@ -54,16 +28,33 @@ function fmtHours(h: number): string {
   return `${hours}h ${mins}m`;
 }
 
+// Custom tooltip wrapper
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border rounded-lg shadow-lg px-3 py-2 text-xs">
+      <p className="font-semibold text-foreground mb-1">{label}</p>
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="font-medium text-foreground">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function AnalyticsDashboard() {
   const reports = useMemo(() => getReports(), []);
+  const [trendRange, setTrendRange] = useState<6 | 12>(6);
 
   const months = useMemo(() => {
     const end = startOfMonth(new Date());
-    const start = subMonths(end, 5);
+    const start = subMonths(end, trendRange - 1);
     return eachMonthOfInterval({ start, end });
-  }, []);
+  }, [trendRange]);
 
-  // Per-month stats
   const byMonth = useMemo(() =>
     months.map(m => {
       const key = format(m, 'yyyy-MM');
@@ -79,48 +70,32 @@ export function AnalyticsDashboard() {
       };
     }), [reports, months]);
 
-  // Priority breakdown
   const byPriority = useMemo(() => {
     const counts: Record<ReportPriority, number> = { low: 0, medium: 0, high: 0, critical: 0 };
     reports.forEach(r => { counts[r.priority]++; });
     return counts;
   }, [reports]);
 
-  // Category breakdown
   const byCategory = useMemo(() => {
     const counts: Partial<Record<ReportCategory, number>> = {};
     reports.forEach(r => { counts[r.category] = (counts[r.category] ?? 0) + 1; });
     return Object.entries(counts)
-      .sort((a, b) => (b[1] as number) - (a[1] as number))
-      .slice(0, 5) as [ReportCategory, number][];
+      .sort((a, b) => (b[1] as number) - (a[1] as number)) as [ReportCategory, number][];
   }, [reports]);
 
-  // ── Real lost time from reports ───────────────────────────────────────────
   const lostTime = useMemo(() => {
-    // Reports that have explicitly logged lost time
     const withTime = reports.filter(r => r.lostTimeHours && r.lostTimeHours > 0);
     const totalHours = withTime.reduce((sum, r) => sum + (r.lostTimeHours ?? 0), 0);
-
-    // Reports with no logged time but still open (estimated)
     const openNoTime = reports.filter(r =>
-      r.status !== 'completed' && r.status !== 'archived' &&
-      (!r.lostTimeHours || r.lostTimeHours === 0)
+      r.status !== 'completed' && r.status !== 'archived' && (!r.lostTimeHours || r.lostTimeHours === 0)
     );
     const estimatedHours = openNoTime.reduce((sum, r) => {
       const est: Record<string, number> = { critical: 8, high: 4, medium: 2, low: 0 };
       return sum + (est[r.priority] ?? 0);
     }, 0);
-
-    // Top offenders (reports with most lost time)
-    const topOffenders = [...withTime]
-      .sort((a, b) => (b.lostTimeHours ?? 0) - (a.lostTimeHours ?? 0))
-      .slice(0, 4);
-
+    const topOffenders = [...withTime].sort((a, b) => (b.lostTimeHours ?? 0) - (a.lostTimeHours ?? 0)).slice(0, 4);
     return { totalHours, estimatedHours, withTime: withTime.length, openNoTime: openNoTime.length, topOffenders };
   }, [reports]);
-
-  // Monthly lost time trend (actual only)
-  const lostTimeTrend = byMonth.map(m => m.lostHours);
 
   const overallRate = reports.length === 0 ? 0
     : Math.round((reports.filter(r => r.status === 'completed').length / reports.length) * 100);
@@ -130,7 +105,14 @@ export function AnalyticsDashboard() {
   const thisMonthRate = thisMonth.length === 0 ? 0
     : Math.round((thisMonth.filter(r => r.status === 'completed').length / thisMonth.length) * 100);
 
-  const maxTotal = Math.max(...byMonth.map(m => m.total), 1);
+  // Data for recharts
+  const priorityPieData = (['critical', 'high', 'medium', 'low'] as ReportPriority[])
+    .filter(p => byPriority[p] > 0)
+    .map(p => ({ name: PRIORITY_LABELS[p], value: byPriority[p], fill: PRIORITY_CHART_COLORS[p] }));
+
+  const categoryPieData = byCategory.map(([cat, count], i) => ({
+    name: CATEGORY_LABELS[cat], value: count, fill: CATEGORY_CHART_COLORS[i % CATEGORY_CHART_COLORS.length],
+  }));
 
   if (reports.length === 0) {
     return (
@@ -152,7 +134,6 @@ export function AnalyticsDashboard() {
 
   return (
     <div className="min-h-screen bg-background pb-8">
-      {/* Header */}
       <div className="bg-primary text-primary-foreground px-4 pt-12 pb-4">
         <div className="max-w-lg mx-auto">
           <h1 className="text-lg font-bold tracking-tight">Analytics</h1>
@@ -166,7 +147,7 @@ export function AnalyticsDashboard() {
         <div className="grid grid-cols-3 gap-2">
           {[
             { icon: CheckCircle2, label: 'Overall Rate', value: `${overallRate}%`, sub: `${reports.filter(r => r.status === 'completed').length} done`, color: 'text-green-500' },
-            { icon: Activity,     label: 'This Month',   value: `${thisMonthRate}%`, sub: `${thisMonth.length} reports`, color: 'text-primary' },
+            { icon: Activity, label: 'This Month', value: `${thisMonthRate}%`, sub: `${thisMonth.length} reports`, color: 'text-primary' },
             { icon: AlertTriangle, label: 'Open Critical', value: String(reports.filter(r => r.priority === 'critical' && r.status !== 'completed').length), sub: 'unresolved', color: 'text-red-500' },
           ].map(kpi => (
             <div key={kpi.label} className="bg-card rounded-xl border border-border p-3 text-center">
@@ -178,7 +159,120 @@ export function AnalyticsDashboard() {
           ))}
         </div>
 
-        {/* ── LOST TIME — real data ──────────────────────────────────────────── */}
+        {/* ── Report Trends (Area Chart) ───────────────────────────────────── */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Report Trends</p>
+              <p className="text-xs text-muted-foreground">Created vs Completed</p>
+            </div>
+            <div className="flex gap-1">
+              {([6, 12] as const).map(n => (
+                <button key={n} onClick={() => setTrendRange(n)}
+                  className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${trendRange === n ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                  {n}M
+                </button>
+              ))}
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <AreaChart data={byMonth} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="gradCreated" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gradCompleted" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip content={<ChartTooltip />} />
+              <Area type="monotone" dataKey="total" name="Created" stroke="hsl(var(--primary))" fill="url(#gradCreated)" strokeWidth={2} dot={{ r: 3, fill: 'hsl(var(--primary))' }} />
+              <Area type="monotone" dataKey="completed" name="Completed" stroke="#22c55e" fill="url(#gradCompleted)" strokeWidth={2} dot={{ r: 3, fill: '#22c55e' }} />
+            </AreaChart>
+          </ResponsiveContainer>
+          <div className="flex items-center justify-center gap-4 mt-2">
+            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-primary" /><span className="text-[9px] text-muted-foreground">Created</span></div>
+            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500" /><span className="text-[9px] text-muted-foreground">Completed</span></div>
+          </div>
+        </div>
+
+        {/* ── Category Distribution (Pie Chart) ────────────────────────────── */}
+        {categoryPieData.length > 0 && (
+          <div className="bg-card rounded-xl border border-border p-4">
+            <p className="text-sm font-semibold text-foreground mb-1">Category Distribution</p>
+            <p className="text-xs text-muted-foreground mb-2">All reports by type</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={categoryPieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                  paddingAngle={3} dataKey="value" animationBegin={0} animationDuration={800}>
+                  {categoryPieData.map((entry, i) => (
+                    <Cell key={i} fill={entry.fill} stroke="hsl(var(--card))" strokeWidth={2} />
+                  ))}
+                </Pie>
+                <Tooltip content={<ChartTooltip />} />
+                <Legend iconType="circle" iconSize={8}
+                  formatter={(value: string) => <span className="text-[10px] text-foreground">{value}</span>} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* ── Priority Breakdown (Bar Chart) ───────────────────────────────── */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Priority Breakdown</p>
+              <p className="text-xs text-muted-foreground">All reports</p>
+            </div>
+            <AlertTriangle className="w-4 h-4 text-orange-500" />
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={priorityPieData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={55} />
+              <Tooltip content={<ChartTooltip />} />
+              <ReBar dataKey="value" name="Reports" radius={[0, 6, 6, 0]} barSize={18}>
+                {priorityPieData.map((entry, i) => (
+                  <Cell key={i} fill={entry.fill} />
+                ))}
+              </ReBar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* ── Completion Rate (Area) ───────────────────────────────────────── */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Completion Rate</p>
+              <p className="text-xs text-muted-foreground">Monthly %</p>
+            </div>
+            <TrendingUp className="w-4 h-4 text-primary" />
+          </div>
+          <ResponsiveContainer width="100%" height={140}>
+            <AreaChart data={byMonth} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="gradRate" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#60a5fa" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[0, 100]} unit="%" />
+              <Tooltip content={<ChartTooltip />} />
+              <Area type="monotone" dataKey="rate" name="Rate" stroke="#60a5fa" fill="url(#gradRate)" strokeWidth={2} dot={{ r: 3, fill: '#60a5fa' }} unit="%" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* ── Lost Time ────────────────────────────────────────────────────── */}
         <div className={`rounded-xl border p-4 ${lostTime.totalHours > 0 ? 'border-orange-500/40 bg-orange-500/5' : 'border-border bg-card'}`}>
           <div className="flex items-start gap-3 mb-3">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${lostTime.totalHours > 0 ? 'bg-orange-500/10' : 'bg-muted'}`}>
@@ -190,15 +284,12 @@ export function AnalyticsDashboard() {
             </div>
           </div>
 
-          {/* Main stat */}
           <div className="flex items-end gap-4 mb-3">
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Logged</p>
-              <div className="flex items-baseline gap-1">
-                <span className={`text-3xl font-bold ${lostTime.totalHours > 0 ? 'text-orange-500' : 'text-foreground'}`}>
-                  {fmtHours(lostTime.totalHours)}
-                </span>
-              </div>
+              <span className={`text-3xl font-bold ${lostTime.totalHours > 0 ? 'text-orange-500' : 'text-foreground'}`}>
+                {fmtHours(lostTime.totalHours)}
+              </span>
             </div>
             {lostTime.estimatedHours > 0 && (
               <div className="pb-0.5">
@@ -208,25 +299,19 @@ export function AnalyticsDashboard() {
             )}
           </div>
 
-          {/* Monthly lost time bars */}
-          {lostTimeTrend.some(v => v > 0) && (
-            <div className="mb-3">
-              <p className="text-[10px] text-muted-foreground mb-1">By month</p>
-              <Sparkline data={lostTimeTrend} color="#f97316" />
-              <div className="flex justify-between mt-0.5">
-                {byMonth.map(m => (
-                  <div key={m.label} className="flex flex-col items-center">
-                    <span className="text-[9px] text-orange-500 font-medium">{m.lostHours > 0 ? fmtHours(m.lostHours) : ''}</span>
-                    <span className="text-[8px] text-muted-foreground">{m.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {byMonth.some(m => m.lostHours > 0) && (
+            <ResponsiveContainer width="100%" height={100}>
+              <BarChart data={byMonth} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTooltip />} />
+                <ReBar dataKey="lostHours" name="Lost Hours" fill="#f97316" radius={[4, 4, 0, 0]} barSize={20} />
+              </BarChart>
+            </ResponsiveContainer>
           )}
 
-          {/* Top offenders */}
           {lostTime.topOffenders.length > 0 && (
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 mt-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Top offenders</p>
               {lostTime.topOffenders.map(r => (
                 <div key={r.id} className="flex items-center gap-2 rounded-lg bg-orange-500/8 border border-orange-500/15 px-2 py-1.5">
@@ -234,9 +319,7 @@ export function AnalyticsDashboard() {
                     <p className="text-xs font-medium text-foreground truncate">{r.title}</p>
                     <p className="text-[9px] text-muted-foreground">{r.category} · {r.status}</p>
                   </div>
-                  <span className="text-xs font-bold text-orange-500 shrink-0">
-                    {fmtHours(r.lostTimeHours ?? 0)}
-                  </span>
+                  <span className="text-xs font-bold text-orange-500 shrink-0">{fmtHours(r.lostTimeHours ?? 0)}</span>
                 </div>
               ))}
             </div>
@@ -249,104 +332,13 @@ export function AnalyticsDashboard() {
           )}
         </div>
 
-        {/* Completion rate sparkline */}
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Completion Rate</p>
-              <p className="text-xs text-muted-foreground">Last 6 months</p>
-            </div>
-            <TrendingUp className="w-4 h-4 text-primary" />
-          </div>
-          <Sparkline data={byMonth.map(m => m.rate)} color="#60a5fa" />
-          <div className="flex justify-between mt-1">
-            {byMonth.map(m => (
-              <div key={m.label} className="flex flex-col items-center gap-0.5">
-                <span className="text-[9px] font-medium text-foreground">{m.rate}%</span>
-                <span className="text-[8px] text-muted-foreground">{m.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Reports created per month */}
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Reports Created</p>
-              <p className="text-xs text-muted-foreground">Last 6 months</p>
-            </div>
-            <BarChart3 className="w-4 h-4 text-primary" />
-          </div>
-          <div className="space-y-2">
-            {byMonth.map(m => (
-              <div key={m.label} className="flex items-center gap-2">
-                <span className="text-[10px] text-muted-foreground w-8 shrink-0">{m.label}</span>
-                <div className="flex-1 h-5 bg-muted rounded-md overflow-hidden relative">
-                  <div className="h-full bg-primary/70 rounded-md transition-all duration-500"
-                    style={{ width: `${(m.total / maxTotal) * 100}%` }} />
-                  {m.completed > 0 && (
-                    <div className="absolute top-0 left-0 h-full bg-green-500/60 rounded-md transition-all duration-500"
-                      style={{ width: `${(m.completed / maxTotal) * 100}%` }} />
-                  )}
-                </div>
-                <span className="text-[10px] text-muted-foreground w-6 shrink-0 text-right">{m.total}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-4 mt-2">
-            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-primary/70" /><span className="text-[9px] text-muted-foreground">Created</span></div>
-            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-green-500/60" /><span className="text-[9px] text-muted-foreground">Completed</span></div>
-          </div>
-        </div>
-
-        {/* Priority breakdown */}
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Priority Breakdown</p>
-              <p className="text-xs text-muted-foreground">All reports</p>
-            </div>
-            <AlertTriangle className="w-4 h-4 text-orange-500" />
-          </div>
-          <div className="space-y-2.5">
-            {(['critical', 'high', 'medium', 'low'] as ReportPriority[]).map(p => (
-              <div key={p}>
-                <div className="flex justify-between mb-1">
-                  <span className={`text-xs font-medium capitalize ${PRIORITY_TEXT[p]}`}>{PRIORITY_LABELS[p]}</span>
-                  <span className="text-xs text-muted-foreground">{byPriority[p]} reports</span>
-                </div>
-                <Bar value={byPriority[p]} max={reports.length} color={PRIORITY_COLORS[p]} />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Top categories */}
-        {byCategory.length > 0 && (
-          <div className="bg-card rounded-xl border border-border p-4">
-            <p className="text-sm font-semibold text-foreground mb-3">Top Categories</p>
-            <div className="space-y-2">
-              {byCategory.map(([cat, count]) => (
-                <div key={cat}>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-xs text-foreground">{CATEGORY_LABELS[cat]}</span>
-                    <span className="text-xs text-muted-foreground">{count}</span>
-                  </div>
-                  <Bar value={count} max={reports.length} color="bg-primary/60" />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Recent activity */}
         <div className="bg-card rounded-xl border border-border p-4">
           <p className="text-sm font-semibold text-foreground mb-3">Recent Activity</p>
           <div className="space-y-2">
             {reports.slice(0, 5).map(r => (
               <div key={r.id} className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_COLORS[r.priority]}`} />
+                <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_COLORS_TW[r.priority]}`} />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-foreground truncate">{r.title}</p>
                 </div>
