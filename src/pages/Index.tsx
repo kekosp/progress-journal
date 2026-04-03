@@ -46,7 +46,6 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchExporting, setBatchExporting] = useState(false);
-  const [inventoryDueCount, setInventoryDueCount] = useState(0);
 
   useEffect(() => {
     setUpcomingCount(getUpcomingCount());
