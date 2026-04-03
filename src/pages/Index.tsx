@@ -164,6 +164,12 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                 <div className="flex items-center justify-between mb-4">
                   <h1 className="text-lg font-bold tracking-tight">Reports</h1>
                   <div className="flex items-center gap-1.5">
+                    {reports.length > 0 && (
+                      <Button size="sm" variant="ghost" onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()); }}
+                        className={`text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0 ${selectMode ? 'bg-primary-foreground/20' : ''}`} title="Select reports">
+                        <CheckSquare className="w-4 h-4" />
+                      </Button>
+                    )}
                     {isAuthEnabled() && onLock && (
                       <Button size="sm" variant="ghost" onClick={onLock} className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0" title="Lock app">
                         <Lock className="w-4 h-4" />
@@ -177,6 +183,22 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                     </Button>
                   </div>
                 </div>
+                {selectMode && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Button size="sm" variant="secondary" className="text-xs h-7" onClick={() => {
+                      if (selectedIds.size === filtered.length) setSelectedIds(new Set());
+                      else setSelectedIds(new Set(filtered.map(r => r.id)));
+                    }}>
+                      {selectedIds.size === filtered.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                    <span className="text-xs text-primary-foreground/70">{selectedIds.size} selected</span>
+                    <Button size="sm" className="ml-auto bg-accent text-accent-foreground hover:bg-accent/90 gap-1 text-xs h-7"
+                      disabled={selectedIds.size === 0 || batchExporting} onClick={handleBatchExport}>
+                      <FileDown className="w-3.5 h-3.5" />
+                      {batchExporting ? 'Exporting…' : 'Export PDF'}
+                    </Button>
+                  </div>
+                )
                 <div className="grid grid-cols-4 gap-2">
                   {[{ label: 'Total', value: stats.total }, { label: 'Done', value: stats.completed }, { label: 'Active', value: stats.inProgress }, { label: 'Critical', value: stats.critical }].map(s => (
                     <div key={s.label} className="bg-primary-foreground/10 rounded-lg p-2 text-center backdrop-blur-sm">
