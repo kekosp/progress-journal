@@ -16,7 +16,8 @@ import { InventoryList } from '@/components/InventoryList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package } from 'lucide-react';
+import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package, CheckSquare, FileDown } from 'lucide-react';
+import { exportBatchReportsToPdf } from '@/lib/export-pdf';
 import { isAuthEnabled } from '@/lib/auth';
 
 type View = 'list' | 'create' | 'edit' | 'detail';
@@ -42,6 +43,9 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
   const [showAuth, setShowAuth] = useState(false);
   const [upcomingCount, setUpcomingCount] = useState(0);
   const [inventoryDueCount, setInventoryDueCount] = useState(0);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchExporting, setBatchExporting] = useState(false);
 
   useEffect(() => {
     setUpcomingCount(getUpcomingCount());
@@ -95,6 +99,21 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
   }, []);
 
   const refresh = () => setReports(getReports());
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  };
+  const handleBatchExport = async () => {
+    const selected = reports.filter(r => selectedIds.has(r.id));
+    if (selected.length === 0) return;
+    setBatchExporting(true);
+    try {
+      await exportBatchReportsToPdf(selected);
+      toast({ title: '✅ Batch PDF exported', description: `${selected.length} reports combined into one PDF.` });
+      setSelectMode(false); setSelectedIds(new Set());
+    } catch (e: any) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    } finally { setBatchExporting(false); }
+  };
   const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   const statusOrder: Record<string, number> = { 'in-progress': 0, draft: 1, completed: 2, archived: 3 };
 
@@ -145,6 +164,12 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                 <div className="flex items-center justify-between mb-4">
                   <h1 className="text-lg font-bold tracking-tight">Reports</h1>
                   <div className="flex items-center gap-1.5">
+                    {reports.length > 0 && (
+                      <Button size="sm" variant="ghost" onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()); }}
+                        className={`text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0 ${selectMode ? 'bg-primary-foreground/20' : ''}`} title="Select reports">
+                        <CheckSquare className="w-4 h-4" />
+                      </Button>
+                    )}
                     {isAuthEnabled() && onLock && (
                       <Button size="sm" variant="ghost" onClick={onLock} className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0" title="Lock app">
                         <Lock className="w-4 h-4" />
@@ -158,6 +183,22 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                     </Button>
                   </div>
                 </div>
+                {selectMode && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Button size="sm" variant="secondary" className="text-xs h-7" onClick={() => {
+                      if (selectedIds.size === filtered.length) setSelectedIds(new Set());
+                      else setSelectedIds(new Set(filtered.map(r => r.id)));
+                    }}>
+                      {selectedIds.size === filtered.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                    <span className="text-xs text-primary-foreground/70">{selectedIds.size} selected</span>
+                    <Button size="sm" className="ml-auto bg-accent text-accent-foreground hover:bg-accent/90 gap-1 text-xs h-7"
+                      disabled={selectedIds.size === 0 || batchExporting} onClick={handleBatchExport}>
+                      <FileDown className="w-3.5 h-3.5" />
+                      {batchExporting ? 'Exporting…' : 'Export PDF'}
+                    </Button>
+                  </div>
+                )}
                 <div className="grid grid-cols-4 gap-2">
                   {[{ label: 'Total', value: stats.total }, { label: 'Done', value: stats.completed }, { label: 'Active', value: stats.inProgress }, { label: 'Critical', value: stats.critical }].map(s => (
                     <div key={s.label} className="bg-primary-foreground/10 rounded-lg p-2 text-center backdrop-blur-sm">
@@ -226,7 +267,22 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                 </div>
               ) : (
                 filtered.map(report => (
-                  <ReportCard key={report.id} report={report} onClick={(id) => { const r = getReportById(id); if (r) { setViewingReport(r); setView('detail'); } }} />
+                  <div key={report.id} className="flex items-start gap-2">
+                    {selectMode && (
+                      <button onClick={() => toggleSelect(report.id)}
+                        className={`mt-4 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          selectedIds.has(report.id) ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/40 bg-background'
+                        }`}>
+                        {selectedIds.has(report.id) && <CheckSquare className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                    <div className="flex-1">
+                      <ReportCard report={report} onClick={(id) => {
+                        if (selectMode) { toggleSelect(id); return; }
+                        const r = getReportById(id); if (r) { setViewingReport(r); setView('detail'); }
+                      }} />
+                    </div>
+                  </div>
                 ))
               )}
             </div>

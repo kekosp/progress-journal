@@ -490,3 +490,334 @@ export async function exportReportToPdf(report: Report) {
     return { saved: false, path: filename };
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BATCH EXPORT — multiple reports in one PDF
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function exportBatchReportsToPdf(reports: Report[]) {
+  if (reports.length === 0) throw new Error('No reports to export');
+  if (reports.length === 1) return exportReportToPdf(reports[0]);
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const PW = doc.internal.pageSize.getWidth();
+  const PH = doc.internal.pageSize.getHeight();
+  const M = 16;
+  const CW = PW - M * 2;
+  const RX = PW - M;
+
+  await registerArabicFonts(doc);
+
+  const isRTL = reports.some(r => hasArabic(r.title) || hasArabic(r.description));
+
+  // ── SHARED COVER PAGE ──
+  setFill(doc, C.navy); doc.rect(0, 0, PW, PH, 'F');
+  setFill(doc, C.accent); doc.rect(0, 0, PW, 4, 'F');
+
+  // Title
+  doc.setFontSize(10); setFont(doc, 'bold'); setTxt(doc, C.accent);
+  drawText(doc, 'BATCH REPORT', M, 34, { rtlX: RX });
+
+  if (isRTL) {
+    setFill(doc, C.accent); doc.rect(RX - 30, 37, 30, 0.6, 'F');
+  } else {
+    setFill(doc, C.accent); doc.rect(M, 37, 30, 0.6, 'F');
+  }
+
+  doc.setFontSize(28); setFont(doc, 'bold'); setTxt(doc, C.white);
+  drawText(doc, `${reports.length} Reports`, M, 55, { rtlX: RX });
+
+  doc.setFontSize(12); setFont(doc, 'normal'); setTxt(doc, C.light);
+  drawText(doc, 'Combined Export — ' + format(new Date(), 'MMMM d, yyyy'), M, 68, { rtlX: RX });
+
+  // Summary stats
+  const cardY = PH * 0.38;
+  setFill(doc, [25, 36, 60]); doc.roundedRect(M, cardY, CW, 70, 3, 3, 'F');
+
+  const cats = new Map<string, number>();
+  const pris = new Map<string, number>();
+  let totalImages = 0;
+  reports.forEach(r => {
+    cats.set(r.category, (cats.get(r.category) || 0) + 1);
+    pris.set(r.priority, (pris.get(r.priority) || 0) + 1);
+    totalImages += r.images.length;
+  });
+
+  const summaryRows: [string, string][] = [
+    ['Total Reports', String(reports.length)],
+    ['Total Images', String(totalImages)],
+    ['Categories', Array.from(cats.entries()).map(([k, v]) => `${CATEGORY_LABELS[k as keyof typeof CATEGORY_LABELS]} (${v})`).join(', ')],
+    ['Date Range', format(new Date(reports[reports.length - 1].createdAt), 'MMM d, yyyy') + ' — ' + format(new Date(reports[0].createdAt), 'MMM d, yyyy')],
+  ];
+
+  summaryRows.forEach(([label, value], i) => {
+    const rowY = cardY + 12 + i * 12;
+    if (isRTL) {
+      doc.setFontSize(7.5); setTxt(doc, C.accent); doc.setFont('helvetica', 'normal');
+      doc.text(label.toUpperCase(), RX - 8, rowY, { align: 'right' });
+      doc.setFontSize(9); setTxt(doc, C.white); setFont(doc, 'normal', value);
+      doc.text(value, RX - 8, rowY + 5, { align: 'right', maxWidth: CW - 16 });
+    } else {
+      doc.setFontSize(7.5); setTxt(doc, C.accent); doc.setFont('helvetica', 'normal');
+      doc.text(label.toUpperCase(), M + 8, rowY);
+      doc.setFontSize(9); setTxt(doc, C.white); setFont(doc, 'normal', value);
+      doc.text(value, M + 8, rowY + 5, { maxWidth: CW - 16 });
+    }
+  });
+
+  // Footer
+  doc.setFontSize(6.5); setTxt(doc, C.light); doc.setFont('helvetica', 'normal');
+  doc.text('Generated ' + format(new Date(), 'yyyy-MM-dd HH:mm'), isRTL ? RX : M, PH - 12, { align: isRTL ? 'right' : 'left' });
+
+  // ── MASTER TOC PAGE ──
+  doc.addPage();
+  const tocPage = doc.getNumberOfPages();
+  // We'll fill it after rendering all reports
+
+  // Track where each report starts
+  const reportPages: { title: string; page: number; category: string; priority: string }[] = [];
+
+  // ── RENDER EACH REPORT ──
+  for (let ri = 0; ri < reports.length; ri++) {
+    const report = reports[ri];
+    doc.addPage();
+    reportPages.push({
+      title: report.title,
+      page: doc.getNumberOfPages(),
+      category: CATEGORY_LABELS[report.category],
+      priority: PRIORITY_LABELS[report.priority],
+    });
+
+    const rIsRTL = hasArabic(report.title) || hasArabic(report.description);
+    let y = M;
+
+    // Mini report header
+    setFill(doc, C.navy); doc.rect(0, 0, PW, 28, 'F');
+    setFill(doc, C.accent); doc.rect(0, 28, PW, 1, 'F');
+
+    doc.setFontSize(7); setFont(doc, 'bold'); setTxt(doc, C.accent);
+    drawText(doc, `REPORT ${ri + 1} OF ${reports.length}`, M, 10, { rtlX: RX });
+
+    doc.setFontSize(14); setFont(doc, 'bold', report.title); setTxt(doc, C.white);
+    const titleLines: string[] = doc.splitTextToSize(report.title, CW - 10);
+    let ty = 18;
+    titleLines.slice(0, 2).forEach((l: string) => {
+      drawText(doc, l, M, ty, { rtlX: RX });
+      ty += 6;
+    });
+
+    // Pills
+    y = 34;
+    let cx = rIsRTL ? RX : M;
+    const chips: [string, RGB][] = [
+      [CATEGORY_LABELS[report.category], C.navy],
+      [PRIORITY_LABELS[report.priority], PRIORITY_COLOR[report.priority]],
+      [STATUS_LABELS[report.status], STATUS_COLOR[report.status]],
+    ];
+    doc.setFontSize(7);
+    if (rIsRTL) {
+      chips.forEach(([label, color]) => {
+        setFont(doc, 'bold', label);
+        const w = doc.getTextWidth(label) + 8;
+        cx -= w;
+        setFill(doc, color); doc.roundedRect(cx, y - 4, w, 7, 2, 2, 'F');
+        setTxt(doc, C.white); doc.setFontSize(7); setFont(doc, 'bold', label);
+        doc.text(label, cx + 4, y);
+        cx -= 3;
+      });
+    } else {
+      chips.forEach(([label, color]) => { cx += pill(doc, label, cx, y, color); });
+    }
+
+    // Meta line
+    y = 44;
+    doc.setFontSize(8); setFont(doc, 'normal'); setTxt(doc, C.mid);
+    const metaParts = [format(new Date(report.createdAt), 'MMM d, yyyy HH:mm')];
+    if (report.projectName) metaParts.push(report.projectName);
+    if (report.location) metaParts.push(report.location);
+    drawText(doc, metaParts.join('  •  '), M, y, { rtlX: RX, maxWidth: CW });
+    y += 10;
+
+    const check = (needed: number) => {
+      if (y + needed > PH - M - 14) { doc.addPage(); y = M; }
+    };
+
+    // Description
+    if (report.description) {
+      check(12);
+      doc.setFontSize(11); setFont(doc, 'bold'); setTxt(doc, C.navy);
+      drawText(doc, 'Description', M, y, { rtlX: RX }); y += 6;
+      doc.setFontSize(10); setFont(doc, 'normal', report.description); setTxt(doc, C.dark);
+      const lines: string[] = doc.splitTextToSize(report.description, CW);
+      lines.forEach((l: string) => { check(6); drawText(doc, l, M, y, { rtlX: RX }); y += 5.5; });
+      y += 6;
+    }
+
+    // Images (simplified 2-col grid)
+    if (report.images.length > 0) {
+      check(12);
+      doc.setFontSize(11); setFont(doc, 'bold'); setTxt(doc, C.navy);
+      drawText(doc, `Attachments (${report.images.length})`, M, y, { rtlX: RX }); y += 6;
+
+      const useGrid = report.images.length >= 2;
+      const colW = useGrid ? (CW - 4) / 2 : CW;
+      const colPos = useGrid ? [M, M + colW + 4] : [M];
+      const aspects = await Promise.all(report.images.map(img => getImageAspect(img.annotatedDataUrl || img.dataUrl)));
+
+      if (useGrid) {
+        let col = 0, rowStartY = y, maxRowH = 0;
+        for (let i = 0; i < report.images.length; i++) {
+          const img = report.images[i];
+          const src = img.annotatedDataUrl || img.dataUrl;
+          const aspect = aspects[i];
+          const imgH = Math.min((colW * aspect.h) / aspect.w, 65);
+          const cellH = imgH + 4;
+          if (col === 0) { check(cellH + 4); rowStartY = y; maxRowH = 0; }
+          try { doc.addImage(src, 'JPEG', colPos[col], y, colW, imgH); } catch {}
+          if (img.caption) {
+            doc.setFontSize(6); setFont(doc, 'normal', img.caption); setTxt(doc, C.mid);
+            doc.text(img.caption, colPos[col], y + imgH + 3, { maxWidth: colW });
+          }
+          maxRowH = Math.max(maxRowH, cellH);
+          col++;
+          if (col >= 2 || i === report.images.length - 1) { y = rowStartY + maxRowH + 6; col = 0; }
+        }
+      } else {
+        for (let i = 0; i < report.images.length; i++) {
+          const img = report.images[i];
+          const src = img.annotatedDataUrl || img.dataUrl;
+          const aspect = aspects[i];
+          const imgH = Math.min((CW * aspect.h) / aspect.w, 90);
+          check(imgH + 10);
+          try { doc.addImage(src, 'JPEG', M, y, CW, imgH); } catch {}
+          y += imgH + 2;
+          if (img.caption) {
+            doc.setFontSize(8); setFont(doc, 'normal', img.caption); setTxt(doc, C.mid);
+            drawText(doc, img.caption, M, y + 2, { maxWidth: CW, rtlX: RX });
+            y += 6;
+          }
+          y += 4;
+        }
+      }
+      y += 4;
+    }
+
+    // Notes
+    if (report.notes) {
+      check(16);
+      doc.setFontSize(11); setFont(doc, 'bold'); setTxt(doc, C.navy);
+      drawText(doc, 'Notes', M, y, { rtlX: RX }); y += 6;
+      setFont(doc, 'normal', report.notes);
+      const noteLines: string[] = doc.splitTextToSize(report.notes, CW - 10);
+      const boxH = noteLines.length * 5.5 + 10;
+      check(boxH + 4);
+      setFill(doc, C.bg); doc.roundedRect(M, y - 2, CW, boxH, 3, 3, 'F');
+      setDrw(doc, C.muted); doc.roundedRect(M, y - 2, CW, boxH, 3, 3, 'D');
+      if (rIsRTL) { setFill(doc, C.accent); doc.rect(RX - 3, y - 2, 3, boxH, 'F'); }
+      else { setFill(doc, C.accent); doc.rect(M, y - 2, 3, boxH, 'F'); }
+      doc.setFontSize(10); setFont(doc, 'normal', report.notes); setTxt(doc, C.dark);
+      noteLines.forEach((l: string) => { drawText(doc, l, M + 8, y + 4, { rtlX: RX - 8 }); y += 5.5; });
+      y += 10;
+    }
+
+    // Signature
+    if (report.signatureDataUrl) {
+      check(42);
+      doc.setFontSize(11); setFont(doc, 'bold'); setTxt(doc, C.navy);
+      drawText(doc, 'Digital Signature', M, y, { rtlX: RX }); y += 6;
+      setFill(doc, C.bg); doc.roundedRect(M, y - 2, CW, 36, 3, 3, 'F');
+      setDrw(doc, C.muted); doc.roundedRect(M, y - 2, CW, 36, 3, 3, 'D');
+      const sigX = rIsRTL ? RX - 76 : M + 8;
+      try { doc.addImage(report.signatureDataUrl, 'PNG', sigX, y + 2, 68, 20); } catch {}
+      y += 24;
+      if (report.signedBy) {
+        doc.setFontSize(9); setFont(doc, 'bold', report.signedBy); setTxt(doc, C.dark);
+        drawText(doc, report.signedBy, sigX, y, { rtlX: sigX + 68 }); y += 5;
+      }
+      if (report.signedAt) {
+        doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setTxt(doc, C.mid);
+        doc.text('Signed: ' + format(new Date(report.signedAt), 'MMM d, yyyy HH:mm'), sigX, y);
+      }
+    }
+  }
+
+  // ── FILL MASTER TOC ──
+  doc.setPage(tocPage);
+  setFill(doc, C.navy); doc.rect(0, 0, PW, 32, 'F');
+  setFill(doc, C.accent); doc.rect(0, 32, PW, 1.2, 'F');
+  doc.setFontSize(18); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+  doc.text('Table of Contents', isRTL ? RX : M, 22, { align: isRTL ? 'right' : 'left' });
+
+  let tocY = 48;
+  reportPages.forEach((entry, i) => {
+    if (i % 2 === 0) { setFill(doc, C.bg); doc.rect(M, tocY - 6, CW, 13, 'F'); }
+
+    if (isRTL) {
+      // Number circle
+      setFill(doc, C.accent); doc.circle(RX - 5, tocY - 1, 4, 'F');
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+      doc.text(String(i + 1), RX - 5, tocY + 1, { align: 'center' });
+
+      doc.setFontSize(10); setFont(doc, 'normal', entry.title); setTxt(doc, C.dark);
+      const displayTitle = entry.title.length > 40 ? entry.title.slice(0, 40) + '…' : entry.title;
+      doc.text(displayTitle, RX - 14, tocY, { align: 'right' });
+
+      // Category tag
+      doc.setFontSize(6); setTxt(doc, C.mid); doc.setFont('helvetica', 'normal');
+      doc.text(entry.category, RX - 14, tocY + 5, { align: 'right' });
+
+      // Page number
+      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); setTxt(doc, C.accent);
+      doc.text(String(entry.page), M + 2, tocY);
+    } else {
+      setFill(doc, C.accent); doc.circle(M + 5, tocY - 1, 4, 'F');
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+      doc.text(String(i + 1), M + 5, tocY + 1, { align: 'center' });
+
+      doc.setFontSize(10); setFont(doc, 'normal', entry.title); setTxt(doc, C.dark);
+      const displayTitle = entry.title.length > 40 ? entry.title.slice(0, 40) + '…' : entry.title;
+      doc.text(displayTitle, M + 14, tocY);
+
+      // Category tag
+      doc.setFontSize(6); setTxt(doc, C.mid); doc.setFont('helvetica', 'normal');
+      doc.text(entry.category, M + 14, tocY + 5);
+
+      // Dots + page number
+      doc.setFontSize(7); setTxt(doc, C.muted);
+      let dx = M + 14 + doc.getTextWidth(displayTitle) + 3;
+      const stopX = PW - M - doc.getTextWidth(String(entry.page)) - 6;
+      while (dx < stopX) { doc.text('.', dx, tocY); dx += 2.5; }
+
+      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); setTxt(doc, C.accent);
+      doc.text(String(entry.page), PW - M - 2, tocY, { align: 'right' });
+    }
+
+    tocY += 14;
+    // Handle TOC overflow
+    if (tocY > PH - 20 && i < reportPages.length - 1) {
+      doc.addPage(); tocY = M + 10;
+    }
+  });
+
+  // ── FOOTERS ──
+  const total = doc.getNumberOfPages();
+  for (let i = 2; i <= total; i++) {
+    doc.setPage(i);
+    setDrw(doc, C.muted); doc.line(M, PH - 12, PW - M, PH - 12);
+    doc.setFontSize(7); setTxt(doc, C.light); doc.setFont('helvetica', 'normal');
+    doc.text('Batch Export — ' + reports.length + ' reports', M, PH - 7);
+    doc.text('Page ' + i + ' of ' + total, PW - M, PH - 7, { align: 'right' });
+  }
+
+  // ── SAVE ──
+  const filename = `Batch_Report_${reports.length}_reports_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
+
+  try {
+    const base64 = doc.output('datauristring').split(',')[1];
+    await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Data, recursive: true });
+    return { saved: true, path: filename };
+  } catch {
+    doc.save(filename);
+    return { saved: false, path: filename };
+  }
+}
