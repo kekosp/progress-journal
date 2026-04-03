@@ -99,6 +99,21 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
   }, []);
 
   const refresh = () => setReports(getReports());
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  };
+  const handleBatchExport = async () => {
+    const selected = reports.filter(r => selectedIds.has(r.id));
+    if (selected.length === 0) return;
+    setBatchExporting(true);
+    try {
+      await exportBatchReportsToPdf(selected);
+      toast({ title: '✅ Batch PDF exported', description: `${selected.length} reports combined into one PDF.` });
+      setSelectMode(false); setSelectedIds(new Set());
+    } catch (e: any) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    } finally { setBatchExporting(false); }
+  };
   const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   const statusOrder: Record<string, number> = { 'in-progress': 0, draft: 1, completed: 2, archived: 3 };
 
