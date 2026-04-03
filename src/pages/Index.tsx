@@ -198,7 +198,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                       {batchExporting ? 'Exporting…' : 'Export PDF'}
                     </Button>
                   </div>
-                )
+                )}
                 <div className="grid grid-cols-4 gap-2">
                   {[{ label: 'Total', value: stats.total }, { label: 'Done', value: stats.completed }, { label: 'Active', value: stats.inProgress }, { label: 'Critical', value: stats.critical }].map(s => (
                     <div key={s.label} className="bg-primary-foreground/10 rounded-lg p-2 text-center backdrop-blur-sm">
