@@ -267,7 +267,22 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                 </div>
               ) : (
                 filtered.map(report => (
-                  <ReportCard key={report.id} report={report} onClick={(id) => { const r = getReportById(id); if (r) { setViewingReport(r); setView('detail'); } }} />
+                  <div key={report.id} className="flex items-start gap-2">
+                    {selectMode && (
+                      <button onClick={() => toggleSelect(report.id)}
+                        className={`mt-4 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          selectedIds.has(report.id) ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/40 bg-background'
+                        }`}>
+                        {selectedIds.has(report.id) && <CheckSquare className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                    <div className="flex-1">
+                      <ReportCard report={report} onClick={(id) => {
+                        if (selectMode) { toggleSelect(id); return; }
+                        const r = getReportById(id); if (r) { setViewingReport(r); setView('detail'); }
+                      }} />
+                    </div>
+                  </div>
                 ))
               )}
             </div>
