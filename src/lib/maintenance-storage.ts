@@ -1,5 +1,5 @@
 // ─── Maintenance Schedule Storage ────────────────────────────────────────────
-
+import { logActivity } from '@/lib/activity-log';
 const SCHEDULE_KEY = 'maintenance-schedule';
 
 export type MaintenancePriority = 'low' | 'medium' | 'high' | 'critical';
