@@ -2,6 +2,7 @@ import { Report } from '@/types/report';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { z } from 'zod';
+import { logActivity } from '@/lib/activity-log';
 
 const STORAGE_KEY = 'reports-data';
 const EXPORT_VERSION = 1;
@@ -51,16 +52,30 @@ export function saveReport(report: Report): void {
   const reports = getReports();
   const index = reports.findIndex(r => r.id === report.id);
   if (index >= 0) {
+    const old = reports[index];
     reports[index] = { ...report, updatedAt: new Date().toISOString() };
+    // Detect specific changes
+    if (report.status !== old.status) {
+      if (report.status === 'completed') logActivity('report', 'completed', report.id, report.title);
+      else if (report.status === 'archived') logActivity('report', 'archived', report.id, report.title);
+      else logActivity('report', 'updated', report.id, report.title, `Status → ${report.status}`);
+    } else if (report.signatureDataUrl && !old.signatureDataUrl) {
+      logActivity('report', 'signed', report.id, report.title, `Signed by ${report.signedBy || 'unknown'}`);
+    } else {
+      logActivity('report', 'updated', report.id, report.title);
+    }
   } else {
     reports.unshift(report);
+    logActivity('report', 'created', report.id, report.title, `${report.category} • ${report.priority}`);
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
 }
 
 export function deleteReport(id: string): void {
-  const reports = getReports().filter(r => r.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+  const reports = getReports();
+  const target = reports.find(r => r.id === id);
+  if (target) logActivity('report', 'deleted', id, target.title);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports.filter(r => r.id !== id)));
 }
 
 export function getReportById(id: string): Report | undefined {
@@ -115,6 +130,7 @@ export async function exportAllData(options: ExportOptions = {}): Promise<string
   });
 
   const filePath = filename;
+  logActivity('report', 'exported', 'batch', `${reports.length} reports`, filePath);
 
   if (options.share) {
     // Get a content:// URI so Android apps can read it
@@ -176,6 +192,7 @@ export function importData(jsonText: string, mode: ImportMode = 'merge'): number
 
   if (mode === 'replace') {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(validReports));
+    logActivity('report', 'imported', 'batch', `${validReports.length} reports`, `Mode: replace`);
     return validReports.length;
   }
 
@@ -184,5 +201,6 @@ export function importData(jsonText: string, mode: ImportMode = 'merge'): number
   const existingIds = new Set(existing.map(r => r.id));
   const incoming = validReports.filter(r => !existingIds.has(r.id));
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...incoming, ...existing]));
+  if (incoming.length > 0) logActivity('report', 'imported', 'batch', `${incoming.length} reports`, `Mode: merge`);
   return incoming.length;
 }

@@ -12,16 +12,17 @@ import { DataTransferModal } from '@/components/DataTransferModal';
 import { AuthSetupModal } from '@/components/AuthSetupModal';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { MaintenanceCalendar } from '@/components/MaintenanceCalendar';
+import { ActivityLog } from '@/components/ActivityLog';
 import { InventoryList } from '@/components/InventoryList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package, CheckSquare, FileDown } from 'lucide-react';
+import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package, CheckSquare, FileDown, History } from 'lucide-react';
 import { exportBatchReportsToPdf } from '@/lib/export-pdf';
 import { isAuthEnabled } from '@/lib/auth';
 
 type View = 'list' | 'create' | 'edit' | 'detail';
-type Tab = 'reports' | 'analytics' | 'calendar' | 'inventory';
+type Tab = 'reports' | 'analytics' | 'calendar' | 'inventory' | 'activity';
 type SortField = 'date' | 'priority' | 'status';
 type SortDir = 'asc' | 'desc';
 
@@ -157,6 +158,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
         {tab === 'analytics' && <AnalyticsDashboard />}
         {tab === 'calendar' && <MaintenanceCalendar />}
         {tab === 'inventory' && <InventoryList />}
+        {tab === 'activity' && <ActivityLog />}
         {tab === 'reports' && (
           <div className="min-h-screen bg-background">
             <div className="bg-primary text-primary-foreground px-4 pt-12 pb-6">
@@ -298,6 +300,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
             { id: 'analytics', Icon: BarChart3,      label: 'Analytics', badge: 0 },
             { id: 'calendar',  Icon: Calendar,       label: 'Calendar',  badge: upcomingCount },
             { id: 'inventory', Icon: Package,        label: 'Inventory', badge: inventoryDueCount },
+            { id: 'activity',  Icon: History,        label: 'Activity',  badge: 0 },
           ] as { id: Tab; Icon: any; label: string; badge: number }[]).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-3 relative transition-all ${tab === t.id ? 'text-primary' : 'text-muted-foreground'}`}>

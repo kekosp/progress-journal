@@ -1,5 +1,5 @@
 // ─── Maintenance Schedule Storage ────────────────────────────────────────────
-
+import { logActivity } from '@/lib/activity-log';
 const SCHEDULE_KEY = 'maintenance-schedule';
 
 export type MaintenancePriority = 'low' | 'medium' | 'high' | 'critical';
@@ -30,15 +30,19 @@ export function saveEvent(event: MaintenanceEvent): void {
   const index = events.findIndex(e => e.id === event.id);
   if (index >= 0) {
     events[index] = event;
+    logActivity('maintenance', 'updated', event.id, event.title);
   } else {
     events.push(event);
+    logActivity('maintenance', 'created', event.id, event.title, `${event.category} • ${event.priority}`);
   }
   localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
 }
 
 export function deleteEvent(id: string): void {
-  const events = getEvents().filter(e => e.id !== id);
-  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
+  const events = getEvents();
+  const target = events.find(e => e.id === id);
+  if (target) logActivity('maintenance', 'deleted', id, target.title);
+  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events.filter(e => e.id !== id)));
 }
 
 export function toggleEventComplete(id: string): void {
@@ -47,6 +51,7 @@ export function toggleEventComplete(id: string): void {
   if (idx >= 0) {
     events[idx].completed = !events[idx].completed;
     events[idx].completedAt = events[idx].completed ? new Date().toISOString() : undefined;
+    logActivity('maintenance', events[idx].completed ? 'completed' : 'updated', id, events[idx].title);
     localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
   }
 }
@@ -74,15 +79,19 @@ export function saveMaintenanceEvent(event: FullMaintenanceEvent): void {
   const index = events.findIndex(e => e.id === event.id);
   if (index >= 0) {
     events[index] = event;
+    logActivity('maintenance', 'updated', event.id, event.title);
   } else {
     events.push(event);
+    logActivity('maintenance', 'created', event.id, event.title);
   }
   localStorage.setItem(FULL_SCHEDULE_KEY, JSON.stringify(events));
 }
 
 export function deleteMaintenanceEvent(id: string): void {
-  const events = getMaintenanceEvents().filter(e => e.id !== id);
-  localStorage.setItem(FULL_SCHEDULE_KEY, JSON.stringify(events));
+  const events = getMaintenanceEvents();
+  const target = events.find(e => e.id === id);
+  if (target) logActivity('maintenance', 'deleted', id, target.title);
+  localStorage.setItem(FULL_SCHEDULE_KEY, JSON.stringify(events.filter(e => e.id !== id)));
 }
 
 export function generateMaintenanceId(): string {

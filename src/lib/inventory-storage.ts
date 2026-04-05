@@ -1,4 +1,5 @@
 import { InventoryItem } from '@/types/inventory';
+import { logActivity } from '@/lib/activity-log';
 
 const STORAGE_KEY = 'inventory-data';
 
@@ -15,16 +16,25 @@ export function saveInventoryItem(item: InventoryItem): void {
   const items = getInventoryItems();
   const index = items.findIndex(i => i.id === item.id);
   if (index >= 0) {
+    const old = items[index];
     items[index] = { ...item, updatedAt: new Date().toISOString() };
+    if (item.status === 'returned' && old.status !== 'returned') {
+      logActivity('inventory', 'returned', item.id, item.name, item.returnedTo ? `To: ${item.returnedTo}` : undefined);
+    } else {
+      logActivity('inventory', 'updated', item.id, item.name);
+    }
   } else {
     items.unshift(item);
+    logActivity('inventory', 'created', item.id, item.name, `Qty: ${item.quantity} from ${item.takenFrom}`);
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
 export function deleteInventoryItem(id: string): void {
-  const items = getInventoryItems().filter(i => i.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  const items = getInventoryItems();
+  const target = items.find(i => i.id === id);
+  if (target) logActivity('inventory', 'deleted', id, target.name);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items.filter(i => i.id !== id)));
 }
 
 export function getInventoryItemById(id: string): InventoryItem | undefined {
