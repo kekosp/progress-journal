@@ -12,6 +12,7 @@ import { DataTransferModal } from '@/components/DataTransferModal';
 import { AuthSetupModal } from '@/components/AuthSetupModal';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { MaintenanceCalendar } from '@/components/MaintenanceCalendar';
+import { ActivityLog } from '@/components/ActivityLog';
 import { InventoryList } from '@/components/InventoryList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
