@@ -88,8 +88,10 @@ export function saveMaintenanceEvent(event: FullMaintenanceEvent): void {
 }
 
 export function deleteMaintenanceEvent(id: string): void {
-  const events = getMaintenanceEvents().filter(e => e.id !== id);
-  localStorage.setItem(FULL_SCHEDULE_KEY, JSON.stringify(events));
+  const events = getMaintenanceEvents();
+  const target = events.find(e => e.id === id);
+  if (target) logActivity('maintenance', 'deleted', id, target.title);
+  localStorage.setItem(FULL_SCHEDULE_KEY, JSON.stringify(events.filter(e => e.id !== id)));
 }
 
 export function generateMaintenanceId(): string {
