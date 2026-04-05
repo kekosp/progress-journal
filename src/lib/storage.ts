@@ -2,6 +2,7 @@ import { Report } from '@/types/report';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { z } from 'zod';
+import { logActivity } from '@/lib/activity-log';
 
 const STORAGE_KEY = 'reports-data';
 const EXPORT_VERSION = 1;
