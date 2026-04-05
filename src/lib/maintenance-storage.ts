@@ -39,8 +39,10 @@ export function saveEvent(event: MaintenanceEvent): void {
 }
 
 export function deleteEvent(id: string): void {
-  const events = getEvents().filter(e => e.id !== id);
-  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
+  const events = getEvents();
+  const target = events.find(e => e.id === id);
+  if (target) logActivity('maintenance', 'deleted', id, target.title);
+  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events.filter(e => e.id !== id)));
 }
 
 export function toggleEventComplete(id: string): void {
