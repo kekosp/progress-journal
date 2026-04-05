@@ -51,6 +51,7 @@ export function toggleEventComplete(id: string): void {
   if (idx >= 0) {
     events[idx].completed = !events[idx].completed;
     events[idx].completedAt = events[idx].completed ? new Date().toISOString() : undefined;
+    logActivity('maintenance', events[idx].completed ? 'completed' : 'updated', id, events[idx].title);
     localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
   }
 }
