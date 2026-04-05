@@ -30,8 +30,10 @@ export function saveEvent(event: MaintenanceEvent): void {
   const index = events.findIndex(e => e.id === event.id);
   if (index >= 0) {
     events[index] = event;
+    logActivity('maintenance', 'updated', event.id, event.title);
   } else {
     events.push(event);
+    logActivity('maintenance', 'created', event.id, event.title, `${event.category} • ${event.priority}`);
   }
   localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
 }
