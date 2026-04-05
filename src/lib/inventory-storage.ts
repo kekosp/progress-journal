@@ -16,9 +16,16 @@ export function saveInventoryItem(item: InventoryItem): void {
   const items = getInventoryItems();
   const index = items.findIndex(i => i.id === item.id);
   if (index >= 0) {
+    const old = items[index];
     items[index] = { ...item, updatedAt: new Date().toISOString() };
+    if (item.status === 'returned' && old.status !== 'returned') {
+      logActivity('inventory', 'returned', item.id, item.name, item.returnedTo ? `To: ${item.returnedTo}` : undefined);
+    } else {
+      logActivity('inventory', 'updated', item.id, item.name);
+    }
   } else {
     items.unshift(item);
+    logActivity('inventory', 'created', item.id, item.name, `Qty: ${item.quantity} from ${item.takenFrom}`);
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
