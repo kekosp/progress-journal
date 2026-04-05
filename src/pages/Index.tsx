@@ -158,6 +158,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
         {tab === 'analytics' && <AnalyticsDashboard />}
         {tab === 'calendar' && <MaintenanceCalendar />}
         {tab === 'inventory' && <InventoryList />}
+        {tab === 'activity' && <ActivityLog />}
         {tab === 'reports' && (
           <div className="min-h-screen bg-background">
             <div className="bg-primary text-primary-foreground px-4 pt-12 pb-6">
