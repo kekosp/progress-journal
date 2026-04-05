@@ -72,8 +72,10 @@ export function saveReport(report: Report): void {
 }
 
 export function deleteReport(id: string): void {
-  const reports = getReports().filter(r => r.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+  const reports = getReports();
+  const target = reports.find(r => r.id === id);
+  if (target) logActivity('report', 'deleted', id, target.title);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports.filter(r => r.id !== id)));
 }
 
 export function getReportById(id: string): Report | undefined {

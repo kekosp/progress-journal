@@ -31,8 +31,10 @@ export function saveInventoryItem(item: InventoryItem): void {
 }
 
 export function deleteInventoryItem(id: string): void {
-  const items = getInventoryItems().filter(i => i.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  const items = getInventoryItems();
+  const target = items.find(i => i.id === id);
+  if (target) logActivity('inventory', 'deleted', id, target.name);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items.filter(i => i.id !== id)));
 }
 
 export function getInventoryItemById(id: string): InventoryItem | undefined {
