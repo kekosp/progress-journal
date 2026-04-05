@@ -192,6 +192,7 @@ export function importData(jsonText: string, mode: ImportMode = 'merge'): number
 
   if (mode === 'replace') {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(validReports));
+    logActivity('report', 'imported', 'batch', `${validReports.length} reports`, `Mode: replace`);
     return validReports.length;
   }
 
@@ -200,5 +201,6 @@ export function importData(jsonText: string, mode: ImportMode = 'merge'): number
   const existingIds = new Set(existing.map(r => r.id));
   const incoming = validReports.filter(r => !existingIds.has(r.id));
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...incoming, ...existing]));
+  if (incoming.length > 0) logActivity('report', 'imported', 'batch', `${incoming.length} reports`, `Mode: merge`);
   return incoming.length;
 }
