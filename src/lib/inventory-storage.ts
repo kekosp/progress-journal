@@ -1,4 +1,5 @@
 import { InventoryItem } from '@/types/inventory';
+import { logActivity } from '@/lib/activity-log';
 
 const STORAGE_KEY = 'inventory-data';
 
