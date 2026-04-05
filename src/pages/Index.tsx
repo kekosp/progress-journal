@@ -22,7 +22,7 @@ import { exportBatchReportsToPdf } from '@/lib/export-pdf';
 import { isAuthEnabled } from '@/lib/auth';
 
 type View = 'list' | 'create' | 'edit' | 'detail';
-type Tab = 'reports' | 'analytics' | 'calendar' | 'inventory';
+type Tab = 'reports' | 'analytics' | 'calendar' | 'inventory' | 'activity';
 type SortField = 'date' | 'priority' | 'status';
 type SortDir = 'asc' | 'desc';
 
