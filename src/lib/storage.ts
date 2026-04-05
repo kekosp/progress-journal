@@ -52,9 +52,21 @@ export function saveReport(report: Report): void {
   const reports = getReports();
   const index = reports.findIndex(r => r.id === report.id);
   if (index >= 0) {
+    const old = reports[index];
     reports[index] = { ...report, updatedAt: new Date().toISOString() };
+    // Detect specific changes
+    if (report.status !== old.status) {
+      if (report.status === 'completed') logActivity('report', 'completed', report.id, report.title);
+      else if (report.status === 'archived') logActivity('report', 'archived', report.id, report.title);
+      else logActivity('report', 'updated', report.id, report.title, `Status → ${report.status}`);
+    } else if (report.signatureDataUrl && !old.signatureDataUrl) {
+      logActivity('report', 'signed', report.id, report.title, `Signed by ${report.signedBy || 'unknown'}`);
+    } else {
+      logActivity('report', 'updated', report.id, report.title);
+    }
   } else {
     reports.unshift(report);
+    logActivity('report', 'created', report.id, report.title, `${report.category} • ${report.priority}`);
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
 }
