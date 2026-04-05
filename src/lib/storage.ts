@@ -130,6 +130,7 @@ export async function exportAllData(options: ExportOptions = {}): Promise<string
   });
 
   const filePath = filename;
+  logActivity('report', 'exported', 'batch', `${reports.length} reports`, filePath);
 
   if (options.share) {
     // Get a content:// URI so Android apps can read it
