@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Report, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '@/types/report';
 import { deleteReport } from '@/lib/storage';
 import { exportReportToPdf } from '@/lib/export-pdf';
+import { exportReportsCsv, exportReportsXlsx } from '@/lib/export-csv-xlsx';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit2, Trash2, FileDown, MapPin, FolderOpen, PenTool, Clock } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ArrowLeft, Edit2, Trash2, FileDown, MapPin, FolderOpen, PenTool, Clock, FileText, FileSpreadsheet } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
