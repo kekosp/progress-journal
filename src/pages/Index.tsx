@@ -196,11 +196,26 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                       {selectedIds.size === filtered.length ? 'Deselect All' : 'Select All'}
                     </Button>
                     <span className="text-xs text-primary-foreground/70">{selectedIds.size} selected</span>
-                    <Button size="sm" className="ml-auto bg-accent text-accent-foreground hover:bg-accent/90 gap-1 text-xs h-7"
-                      disabled={selectedIds.size === 0 || batchExporting} onClick={handleBatchExport}>
-                      <FileDown className="w-3.5 h-3.5" />
-                      {batchExporting ? 'Exporting…' : 'Export PDF'}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" className="ml-auto bg-accent text-accent-foreground hover:bg-accent/90 gap-1 text-xs h-7"
+                          disabled={selectedIds.size === 0 || batchExporting}>
+                          <FileDown className="w-3.5 h-3.5" />
+                          {batchExporting ? 'Exporting…' : 'Export'}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleBatchExport} className="gap-2">
+                          <FileText className="w-4 h-4" /> PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { exportReportsCsv(reports.filter(r => selectedIds.has(r.id))); setSelectMode(false); setSelectedIds(new Set()); }} className="gap-2">
+                          <FileDown className="w-4 h-4" /> CSV
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { exportReportsXlsx(reports.filter(r => selectedIds.has(r.id))); setSelectMode(false); setSelectedIds(new Set()); }} className="gap-2">
+                          <FileSpreadsheet className="w-4 h-4" /> Excel
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 )}
                 <div className="grid grid-cols-4 gap-2">
