@@ -88,8 +88,29 @@ export function InventoryList() {
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-lg font-bold tracking-tight">Inventory</h1>
-            <Button size="sm" onClick={() => setView('create')} className="bg-accent text-accent-foreground hover:bg-accent/90 gap-1.5 shadow-lg">
-              <Plus className="w-4 h-4" /> Add Item
+            <div className="flex items-center gap-1.5">
+              {items.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0" title="Export">
+                      <FileDown className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => exportInventoryCsv(items)} className="gap-2">
+                      <FileText className="w-4 h-4" /> Export CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportInventoryXlsx(items)} className="gap-2">
+                      <FileSpreadsheet className="w-4 h-4" /> Export Excel
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              <Button size="sm" onClick={() => setView('create')} className="bg-accent text-accent-foreground hover:bg-accent/90 gap-1.5 shadow-lg">
+                <Plus className="w-4 h-4" /> Add Item
+              </Button>
+            </div>
+          </div>
             </Button>
           </div>
           <div className="grid grid-cols-3 gap-2">
