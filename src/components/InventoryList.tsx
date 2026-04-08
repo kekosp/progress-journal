@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { InventoryItem } from '@/types/inventory';
 import { getInventoryItems, saveInventoryItem, deleteInventoryItem } from '@/lib/inventory-storage';
+import { exportInventoryCsv, exportInventoryXlsx } from '@/lib/export-csv-xlsx';
 import { toast } from '@/hooks/use-toast';
 import { InventoryForm } from '@/components/InventoryForm';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet } from 'lucide-react';
 
 type View = 'list' | 'create' | 'edit';
 
