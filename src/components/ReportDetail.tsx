@@ -76,10 +76,25 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div className="flex gap-2">
-              <Button size="sm" variant="ghost" onClick={handleExport} disabled={exporting}
-                className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0" title="Export PDF">
-                <FileDown className="w-4 h-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="ghost" disabled={exporting}
+                    className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0" title="Export">
+                    <FileDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExport} className="gap-2">
+                    <FileText className="w-4 h-4" /> Export PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportReportsCsv([report])} className="gap-2">
+                    <FileDown className="w-4 h-4" /> Export CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportReportsXlsx([report])} className="gap-2">
+                    <FileSpreadsheet className="w-4 h-4" /> Export Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button size="sm" variant="ghost" onClick={() => onEdit(report.id)}
                 className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0">
                 <Edit2 className="w-4 h-4" />
