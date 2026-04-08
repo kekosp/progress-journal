@@ -111,8 +111,6 @@ export function InventoryList() {
               </Button>
             </div>
           </div>
-            </Button>
-          </div>
           <div className="grid grid-cols-3 gap-2">
             {[{ label: 'Total', value: items.length }, { label: 'In Hand', value: inHandCount }, { label: 'Returned', value: returnedCount }].map(s => (
               <div key={s.label} className="bg-primary-foreground/10 rounded-lg p-2 text-center backdrop-blur-sm">
