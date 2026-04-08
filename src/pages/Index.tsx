@@ -17,8 +17,10 @@ import { InventoryList } from '@/components/InventoryList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package, CheckSquare, FileDown, History } from 'lucide-react';
+import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package, CheckSquare, FileDown, FileText, FileSpreadsheet, History } from 'lucide-react';
 import { exportBatchReportsToPdf } from '@/lib/export-pdf';
+import { exportReportsCsv, exportReportsXlsx } from '@/lib/export-csv-xlsx';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { isAuthEnabled } from '@/lib/auth';
 
 type View = 'list' | 'create' | 'edit' | 'detail';
