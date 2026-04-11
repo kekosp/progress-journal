@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   ClipboardList, Calendar, Package, Plus, Pencil, Trash2, CheckCircle2, Archive,
-  RotateCcw, FileDown, FileUp, PenLine, History, FilterX
+  RotateCcw, FileDown, FileUp, PenLine, History, FilterX, LogOut
 } from 'lucide-react';
 
 const MODULE_META: Record<ActivityModule, { label: string; Icon: React.ElementType; color: string }> = {
@@ -53,7 +53,7 @@ function groupByDate(entries: ActivityEntry[]): Record<string, ActivityEntry[]> 
   return groups;
 }
 
-export function ActivityLog() {
+export function ActivityLog({ onLogout }: { onLogout?: () => void }) {
   const [log, setLog] = useState(getActivityLog);
   const [moduleFilter, setModuleFilter] = useState<string>('all');
 
@@ -84,6 +84,12 @@ export function ActivityLog() {
               <Button size="sm" variant="ghost" onClick={handleClear}
                 className="text-primary-foreground hover:bg-primary-foreground/10 gap-1 text-xs h-7">
                 <FilterX className="w-3.5 h-3.5" /> Clear
+              </Button>
+            )}
+            {onLogout && (
+              <Button size="sm" variant="ghost" onClick={onLogout}
+                className="text-primary-foreground hover:bg-primary-foreground/10 gap-1 text-xs h-7">
+                <LogOut className="w-3.5 h-3.5" /> Logout
               </Button>
             )}
           </div>
