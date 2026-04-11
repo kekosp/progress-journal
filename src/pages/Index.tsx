@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Report, ReportCategory, ReportPriority, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/report';
 import { getReports, getReportById } from '@/lib/storage';
 import { getUpcomingCount, getDueSoonEvents } from '@/lib/maintenance-storage';
@@ -50,6 +50,20 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchExporting, setBatchExporting] = useState(false);
+
+  // Secret triple-tap to open admin activity log
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const handleSecretTap = useCallback(() => {
+    tapCountRef.current += 1;
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0;
+      setTab('activity');
+    } else {
+      tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 500);
+    }
+  }, []);
 
   useEffect(() => {
     setUpcomingCount(getUpcomingCount());
@@ -167,7 +181,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
             <div className="bg-primary text-primary-foreground px-4 pt-12 pb-6">
               <div className="max-w-lg mx-auto">
                 <div className="flex items-center justify-between mb-4">
-                  <h1 className="text-lg font-bold tracking-tight">Reports</h1>
+                  <h1 className="text-lg font-bold tracking-tight select-none" onClick={handleSecretTap}>Reports</h1>
                   <div className="flex items-center gap-1.5">
                     {reports.length > 0 && (
                       <Button size="sm" variant="ghost" onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()); }}
@@ -318,7 +332,6 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
             { id: 'analytics', Icon: BarChart3,      label: 'Analytics', badge: 0 },
             { id: 'calendar',  Icon: Calendar,       label: 'Calendar',  badge: upcomingCount },
             { id: 'inventory', Icon: Package,        label: 'Inventory', badge: inventoryDueCount },
-            { id: 'activity',  Icon: History,        label: 'Activity',  badge: 0 },
           ] as { id: Tab; Icon: any; label: string; badge: number }[]).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-3 relative transition-all ${tab === t.id ? 'text-primary' : 'text-muted-foreground'}`}>
