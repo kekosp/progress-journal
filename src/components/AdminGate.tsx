@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Shield, Eye, EyeOff, AlertCircle, UserPlus, LogIn } from 'lucide-react';
 
 interface Props {
-  children: React.ReactNode;
+  children: React.ReactNode | ((opts: { onLogout: () => void }) => React.ReactNode);
 }
 
 export function AdminGate({ children }: Props) {
   const [authenticated, setAuthenticated] = useState(false);
+  const handleLogout = () => setAuthenticated(false);
   const needsSetup = !isAdminSetup();
   const [mode, setMode] = useState<'login' | 'setup'>(needsSetup ? 'setup' : 'login');
   const [username, setUsername] = useState('');
@@ -19,7 +20,7 @@ export function AdminGate({ children }: Props) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (authenticated) return <>{children}</>;
+  if (authenticated) return <>{typeof children === 'function' ? children({ onLogout: handleLogout }) : children}</>;
 
   const handleSubmit = async () => {
     if (!username.trim() || !password.trim()) {
