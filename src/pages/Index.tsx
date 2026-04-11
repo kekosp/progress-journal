@@ -175,7 +175,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
         {tab === 'analytics' && <AnalyticsDashboard />}
         {tab === 'calendar' && <MaintenanceCalendar />}
         {tab === 'inventory' && <InventoryList />}
-        {tab === 'activity' && <AdminGate><ActivityLog /></AdminGate>}
+        {tab === 'activity' && <AdminGate>{({ onLogout }) => <ActivityLog onLogout={() => { onLogout(); setTab('reports'); }} />}</AdminGate>}
         {tab === 'reports' && (
           <div className="min-h-screen bg-background">
             <div className="bg-primary text-primary-foreground px-4 pt-12 pb-6">
