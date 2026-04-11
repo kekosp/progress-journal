@@ -13,6 +13,7 @@ import { AuthSetupModal } from '@/components/AuthSetupModal';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { MaintenanceCalendar } from '@/components/MaintenanceCalendar';
 import { ActivityLog } from '@/components/ActivityLog';
+import { AdminGate } from '@/components/AdminGate';
 import { InventoryList } from '@/components/InventoryList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -160,7 +161,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
         {tab === 'analytics' && <AnalyticsDashboard />}
         {tab === 'calendar' && <MaintenanceCalendar />}
         {tab === 'inventory' && <InventoryList />}
-        {tab === 'activity' && <ActivityLog />}
+        {tab === 'activity' && <AdminGate><ActivityLog /></AdminGate>}
         {tab === 'reports' && (
           <div className="min-h-screen bg-background">
             <div className="bg-primary text-primary-foreground px-4 pt-12 pb-6">
