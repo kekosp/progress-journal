@@ -22,7 +22,7 @@ function hexToBuf(hex: string): Uint8Array {
 
 async function hash(value: string, salt: Uint8Array): Promise<string> {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(value), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' }, key, 256);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: salt as BufferSource, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' }, key, 256);
   return bufToHex(bits);
 }
 
