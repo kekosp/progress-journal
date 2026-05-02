@@ -117,6 +117,20 @@ export function generateId(): string {
   return `rpt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// ─── Time-in-progress helpers ────────────────────────────────────────────────
+
+/**
+ * Returns the total time (in ms) a report has spent in the 'in-progress' status,
+ * including the currently-running session if it's still in-progress.
+ */
+export function getTimeInProgressMs(report: Report, now: Date = new Date()): number {
+  const base = report.timeInProgressMs ?? 0;
+  if (report.status === 'in-progress' && report.inProgressStartedAt) {
+    return base + Math.max(0, now.getTime() - new Date(report.inProgressStartedAt).getTime());
+  }
+  return base;
+}
+
 // ─── Data Transfer ────────────────────────────────────────────────────────────
 
 export interface ExportBundle {
