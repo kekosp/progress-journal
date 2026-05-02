@@ -28,6 +28,11 @@ export interface Report {
   signedAt?: string;
   lostTimeHours?: number;   // manually entered lost time in hours
   lostTimeMinutes?: number; // optionally track minutes too
+  // ─── Time-in-progress tracking (auto, ms) ─────────────────────────────────
+  /** Timestamp (ISO) when report most recently entered the 'in-progress' status. Cleared when it leaves. */
+  inProgressStartedAt?: string;
+  /** Total accumulated time spent in 'in-progress' across all transitions, in milliseconds. */
+  timeInProgressMs?: number;
 }
 
 export const CATEGORY_LABELS: Record<ReportCategory, string> = {
