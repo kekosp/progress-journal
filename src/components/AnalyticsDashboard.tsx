@@ -309,6 +309,64 @@ export function AnalyticsDashboard() {
           </ResponsiveContainer>
         </div>
 
+        {/* ── Time in Progress (auto-tracked) ──────────────────────────────── */}
+        <div className={`rounded-xl border p-4 ${timeInProgress.liveCount > 0 ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
+          <div className="flex items-start gap-3 mb-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${timeInProgress.liveCount > 0 ? 'bg-primary/10' : 'bg-muted'}`}>
+              <Hourglass className={`w-5 h-5 ${timeInProgress.liveCount > 0 ? 'text-primary' : 'text-muted-foreground'}`} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">Time in Progress</p>
+              <p className="text-xs text-muted-foreground">
+                Auto-tracked while reports stay <span className="font-medium">in-progress</span>
+                {timeInProgress.liveCount > 0 && (
+                  <> · <span className="text-primary font-medium">{timeInProgress.liveCount} running</span></>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="bg-card rounded-lg border border-border p-2 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Total</p>
+              <p className="text-lg font-bold text-foreground leading-tight">{fmtDuration(timeInProgress.totalMs)}</p>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-2 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Avg (done)</p>
+              <p className="text-lg font-bold text-foreground leading-tight">{fmtDuration(timeInProgress.completedAvgMs)}</p>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-2 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Reports</p>
+              <p className="text-lg font-bold text-foreground leading-tight">{timeInProgress.count}</p>
+            </div>
+          </div>
+
+          {timeInProgress.top.length > 0 ? (
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Longest in progress</p>
+              {timeInProgress.top.map(({ report, ms }) => {
+                const live = report.status === 'in-progress' && !!report.inProgressStartedAt;
+                return (
+                  <div key={report.id} className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 ${live ? 'bg-primary/8 border-primary/20' : 'bg-muted/40 border-border'}`}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{report.title}</p>
+                      <p className="text-[9px] text-muted-foreground">
+                        {report.category} · {report.status}
+                        {live && <span className="ml-1 text-primary">● live</span>}
+                      </p>
+                    </div>
+                    <span className={`text-xs font-bold shrink-0 ${live ? 'text-primary' : 'text-foreground'}`}>{fmtDuration(ms)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[10px] text-muted-foreground">
+              No time tracked yet. Move a report to <span className="font-medium">In Progress</span> to start the clock.
+            </p>
+          )}
+        </div>
+
         {/* ── Lost Time ────────────────────────────────────────────────────── */}
         <div className={`rounded-xl border p-4 ${lostTime.totalHours > 0 ? 'border-orange-500/40 bg-orange-500/5' : 'border-border bg-card'}`}>
           <div className="flex items-start gap-3 mb-3">
