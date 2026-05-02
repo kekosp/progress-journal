@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
-import { ArrowLeft, Camera, ImagePlus, X, Save, PenTool, Clock } from 'lucide-react';
+import { ArrowLeft, Camera, ImagePlus, X, Save, PenTool, Clock, Hourglass } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -37,6 +37,16 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
   );
   const [lostTimeMinutes, setLostTimeMinutes] = useState<string>(
     report?.lostTimeMinutes != null ? String(report.lostTimeMinutes) : ''
+  );
+
+  // ─── Manual override for Time in Progress (auto-tracked otherwise) ─────────
+  // Stored as ms in report.timeInProgressMs; edited here as hours + minutes.
+  const initialTipMin = report?.timeInProgressMs ? Math.round(report.timeInProgressMs / 60000) : 0;
+  const [tipHours, setTipHours] = useState<string>(
+    initialTipMin > 0 ? String(Math.floor(initialTipMin / 60)) : ''
+  );
+  const [tipMinutes, setTipMinutes] = useState<string>(
+    initialTipMin > 0 ? String(initialTipMin % 60) : ''
   );
 
   const [signatureDataUrl, setSignatureDataUrl] = useState(report?.signatureDataUrl ?? '');
@@ -63,6 +73,15 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
     }
     const now = new Date().toISOString();
     const lt = parsedLostHours();
+
+    // Manual time-in-progress override → ms (validated 0..9999h)
+    const tipH = parseFloat(tipHours);
+    const tipM = parseFloat(tipMinutes);
+    const tipHoursValid = !isNaN(tipH) ? Math.min(Math.max(tipH, 0), 9999) : 0;
+    const tipMinutesValid = !isNaN(tipM) ? Math.min(Math.max(tipM, 0), 59) : 0;
+    const tipManualMs = (tipHoursValid * 60 + tipMinutesValid) * 60_000;
+    const hasManualTip = !isNaN(tipH) || !isNaN(tipM);
+
     const data: Report = {
       id: report?.id ?? generateId(),
       title: title.trim(),
@@ -81,6 +100,11 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
       signedAt: signatureDataUrl ? (report?.signedAt ?? now) : undefined,
       lostTimeHours: lt,
       lostTimeMinutes: lostTimeMinutes ? parseFloat(lostTimeMinutes) : undefined,
+      // Manual override wins; otherwise preserve whatever the auto-tracker has stored.
+      timeInProgressMs: hasManualTip ? tipManualMs : report?.timeInProgressMs,
+      // If user manually set a time, also clear the live "started" stamp so the
+      // auto-tracker doesn't double-count on top of the override.
+      inProgressStartedAt: hasManualTip ? undefined : report?.inProgressStartedAt,
     };
     saveReport(data);
     toast.success(report ? 'Report updated' : 'Report created');
@@ -106,6 +130,12 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
   const totalMins = (parseFloat(lostTimeHours || '0') * 60) + parseFloat(lostTimeMinutes || '0');
   const ltDisplay = totalMins > 0
     ? `${Math.floor(totalMins / 60)}h ${Math.round(totalMins % 60)}m`
+    : null;
+
+  // Time-in-progress display
+  const tipTotalMin = (parseFloat(tipHours || '0') * 60) + parseFloat(tipMinutes || '0');
+  const tipDisplay = tipTotalMin > 0
+    ? `${Math.floor(tipTotalMin / 60)}h ${Math.round(tipTotalMin % 60)}m`
     : null;
 
   return (
