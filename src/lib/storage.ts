@@ -35,6 +35,8 @@ const reportSchema = z.object({
   signedAt: z.string().optional(),
   lostTimeHours: z.number().min(0).max(9999).optional(),
   lostTimeMinutes: z.number().min(0).max(59).optional(),
+  inProgressStartedAt: z.string().optional(),
+  timeInProgressMs: z.number().min(0).optional(),
 }).strict();
 
 // ─── Core CRUD ────────────────────────────────────────────────────────────────
@@ -53,7 +55,27 @@ export function saveReport(report: Report): void {
   const index = reports.findIndex(r => r.id === report.id);
   if (index >= 0) {
     const old = reports[index];
-    reports[index] = { ...report, updatedAt: new Date().toISOString() };
+    // ─── Auto-track time spent in 'in-progress' ─────────────────────────────
+    const now = new Date();
+    let inProgressStartedAt = report.inProgressStartedAt ?? old.inProgressStartedAt;
+    let timeInProgressMs = report.timeInProgressMs ?? old.timeInProgressMs ?? 0;
+    if (report.status !== old.status) {
+      // Leaving in-progress → accumulate elapsed
+      if (old.status === 'in-progress' && old.inProgressStartedAt) {
+        timeInProgressMs += Math.max(0, now.getTime() - new Date(old.inProgressStartedAt).getTime());
+        inProgressStartedAt = undefined;
+      }
+      // Entering in-progress → start the clock
+      if (report.status === 'in-progress') {
+        inProgressStartedAt = now.toISOString();
+      }
+    }
+    reports[index] = {
+      ...report,
+      inProgressStartedAt,
+      timeInProgressMs,
+      updatedAt: now.toISOString(),
+    };
     // Detect specific changes
     if (report.status !== old.status) {
       if (report.status === 'completed') logActivity('report', 'completed', report.id, report.title);
@@ -65,7 +87,16 @@ export function saveReport(report: Report): void {
       logActivity('report', 'updated', report.id, report.title);
     }
   } else {
-    reports.unshift(report);
+    // New report — start the clock if it's created already in-progress
+    const seeded: Report = {
+      ...report,
+      timeInProgressMs: report.timeInProgressMs ?? 0,
+      inProgressStartedAt:
+        report.status === 'in-progress'
+          ? (report.inProgressStartedAt ?? new Date().toISOString())
+          : undefined,
+    };
+    reports.unshift(seeded);
     logActivity('report', 'created', report.id, report.title, `${report.category} • ${report.priority}`);
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
