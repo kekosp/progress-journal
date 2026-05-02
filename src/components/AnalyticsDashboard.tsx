@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
-import { getReports } from '@/lib/storage';
+import { useMemo, useState, useEffect } from 'react';
+import { getReports, getTimeInProgressMs } from '@/lib/storage';
 import { Report, ReportPriority, PRIORITY_LABELS, CATEGORY_LABELS, ReportCategory } from '@/types/report';
 import { format, parseISO, startOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
-import { TrendingUp, Clock, AlertTriangle, CheckCircle2, BarChart3, Activity } from 'lucide-react';
+import { TrendingUp, Clock, AlertTriangle, CheckCircle2, BarChart3, Activity, Hourglass } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -28,6 +28,19 @@ function fmtHours(h: number): string {
   return `${hours}h ${mins}m`;
 }
 
+function fmtDuration(ms: number): string {
+  if (!ms || ms < 1000) return '0m';
+  const totalMin = Math.floor(ms / 60000);
+  const days = Math.floor(totalMin / (60 * 24));
+  const hours = Math.floor((totalMin % (60 * 24)) / 60);
+  const mins = totalMin % 60;
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (days === 0 && mins > 0) parts.push(`${mins}m`);
+  return parts.join(' ') || '0m';
+}
+
 // Custom tooltip wrapper
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -48,6 +61,14 @@ function ChartTooltip({ active, payload, label }: any) {
 export function AnalyticsDashboard() {
   const reports = useMemo(() => getReports(), []);
   const [trendRange, setTrendRange] = useState<6 | 12>(6);
+  // Tick every 30s so live in-progress timers update on screen
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const hasLive = reports.some(r => r.status === 'in-progress' && r.inProgressStartedAt);
+    if (!hasLive) return;
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [reports]);
 
   const months = useMemo(() => {
     const end = startOfMonth(new Date());
@@ -99,6 +120,22 @@ export function AnalyticsDashboard() {
 
   const overallRate = reports.length === 0 ? 0
     : Math.round((reports.filter(r => r.status === 'completed').length / reports.length) * 100);
+
+  // ─── Time in Progress (auto-tracked) ────────────────────────────────────────
+  const timeInProgress = useMemo(() => {
+    const nowDate = new Date(now);
+    const enriched = reports
+      .map(r => ({ report: r, ms: getTimeInProgressMs(r, nowDate) }))
+      .filter(x => x.ms > 0);
+    const totalMs = enriched.reduce((s, x) => s + x.ms, 0);
+    const completed = enriched.filter(x => x.report.status === 'completed');
+    const completedAvgMs = completed.length > 0
+      ? completed.reduce((s, x) => s + x.ms, 0) / completed.length
+      : 0;
+    const liveCount = reports.filter(r => r.status === 'in-progress' && r.inProgressStartedAt).length;
+    const top = [...enriched].sort((a, b) => b.ms - a.ms).slice(0, 4);
+    return { totalMs, completedAvgMs, liveCount, top, count: enriched.length };
+  }, [reports, now]);
 
   const thisMonthKey = format(new Date(), 'yyyy-MM');
   const thisMonth = reports.filter(r => r.createdAt.startsWith(thisMonthKey));
