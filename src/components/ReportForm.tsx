@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
-import { ArrowLeft, Camera, ImagePlus, X, Save, PenTool, Clock } from 'lucide-react';
+import { ArrowLeft, Camera, ImagePlus, X, Save, PenTool, Clock, Hourglass } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -37,6 +37,16 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
   );
   const [lostTimeMinutes, setLostTimeMinutes] = useState<string>(
     report?.lostTimeMinutes != null ? String(report.lostTimeMinutes) : ''
+  );
+
+  // ─── Manual override for Time in Progress (auto-tracked otherwise) ─────────
+  // Stored as ms in report.timeInProgressMs; edited here as hours + minutes.
+  const initialTipMin = report?.timeInProgressMs ? Math.round(report.timeInProgressMs / 60000) : 0;
+  const [tipHours, setTipHours] = useState<string>(
+    initialTipMin > 0 ? String(Math.floor(initialTipMin / 60)) : ''
+  );
+  const [tipMinutes, setTipMinutes] = useState<string>(
+    initialTipMin > 0 ? String(initialTipMin % 60) : ''
   );
 
   const [signatureDataUrl, setSignatureDataUrl] = useState(report?.signatureDataUrl ?? '');
@@ -63,6 +73,15 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
     }
     const now = new Date().toISOString();
     const lt = parsedLostHours();
+
+    // Manual time-in-progress override → ms (validated 0..9999h)
+    const tipH = parseFloat(tipHours);
+    const tipM = parseFloat(tipMinutes);
+    const tipHoursValid = !isNaN(tipH) ? Math.min(Math.max(tipH, 0), 9999) : 0;
+    const tipMinutesValid = !isNaN(tipM) ? Math.min(Math.max(tipM, 0), 59) : 0;
+    const tipManualMs = (tipHoursValid * 60 + tipMinutesValid) * 60_000;
+    const hasManualTip = !isNaN(tipH) || !isNaN(tipM);
+
     const data: Report = {
       id: report?.id ?? generateId(),
       title: title.trim(),
@@ -81,6 +100,11 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
       signedAt: signatureDataUrl ? (report?.signedAt ?? now) : undefined,
       lostTimeHours: lt,
       lostTimeMinutes: lostTimeMinutes ? parseFloat(lostTimeMinutes) : undefined,
+      // Manual override wins; otherwise preserve whatever the auto-tracker has stored.
+      timeInProgressMs: hasManualTip ? tipManualMs : report?.timeInProgressMs,
+      // If user manually set a time, also clear the live "started" stamp so the
+      // auto-tracker doesn't double-count on top of the override.
+      inProgressStartedAt: hasManualTip ? undefined : report?.inProgressStartedAt,
     };
     saveReport(data);
     toast.success(report ? 'Report updated' : 'Report created');
@@ -106,6 +130,12 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
   const totalMins = (parseFloat(lostTimeHours || '0') * 60) + parseFloat(lostTimeMinutes || '0');
   const ltDisplay = totalMins > 0
     ? `${Math.floor(totalMins / 60)}h ${Math.round(totalMins % 60)}m`
+    : null;
+
+  // Time-in-progress display
+  const tipTotalMin = (parseFloat(tipHours || '0') * 60) + parseFloat(tipMinutes || '0');
+  const tipDisplay = tipTotalMin > 0
+    ? `${Math.floor(tipTotalMin / 60)}h ${Math.round(tipTotalMin % 60)}m`
     : null;
 
   return (
@@ -264,6 +294,91 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
                 <button
                   type="button"
                   onClick={() => { setLostTimeHours(''); setLostTimeMinutes(''); }}
+                  className="text-[10px] px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Time Taken (in progress) — manual override ─────────────────────── */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Hourglass className="w-3.5 h-3.5 text-primary" />
+              Time Taken
+            </Label>
+            {tipDisplay && (
+              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                {tipDisplay} total
+              </span>
+            )}
+          </div>
+          <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+            <p className="text-[10px] text-muted-foreground">
+              Auto-tracked while status is <span className="font-medium">In Progress</span>. Set a value here to override.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Hours</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="9999"
+                    step="1"
+                    value={tipHours}
+                    onChange={e => setTipHours(e.target.value)}
+                    placeholder="0"
+                    className="bg-background border-border text-sm pr-8"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">h</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Minutes</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="59"
+                    step="5"
+                    value={tipMinutes}
+                    onChange={e => setTipMinutes(e.target.value)}
+                    placeholder="0"
+                    className="bg-background border-border text-sm pr-8"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">m</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {[
+                { label: '15m', h: '0', m: '15' },
+                { label: '1h', h: '1', m: '0' },
+                { label: '4h', h: '4', m: '0' },
+                { label: '1d', h: '8', m: '0' },
+                { label: '1w', h: '40', m: '0' },
+              ].map(preset => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => { setTipHours(preset.h); setTipMinutes(preset.m); }}
+                  className={`text-[10px] px-2 py-1 rounded-md border transition-colors
+                    ${tipHours === preset.h && tipMinutes === preset.m
+                      ? 'bg-primary border-primary text-primary-foreground font-semibold'
+                      : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                    }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+              {(tipHours || tipMinutes) && (
+                <button
+                  type="button"
+                  onClick={() => { setTipHours(''); setTipMinutes(''); }}
                   className="text-[10px] px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
                 >
                   Clear
