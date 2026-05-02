@@ -303,6 +303,91 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
           </div>
         </div>
 
+        {/* ── Time Taken (in progress) — manual override ─────────────────────── */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Hourglass className="w-3.5 h-3.5 text-primary" />
+              Time Taken
+            </Label>
+            {tipDisplay && (
+              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                {tipDisplay} total
+              </span>
+            )}
+          </div>
+          <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+            <p className="text-[10px] text-muted-foreground">
+              Auto-tracked while status is <span className="font-medium">In Progress</span>. Set a value here to override.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Hours</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="9999"
+                    step="1"
+                    value={tipHours}
+                    onChange={e => setTipHours(e.target.value)}
+                    placeholder="0"
+                    className="bg-background border-border text-sm pr-8"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">h</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Minutes</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="59"
+                    step="5"
+                    value={tipMinutes}
+                    onChange={e => setTipMinutes(e.target.value)}
+                    placeholder="0"
+                    className="bg-background border-border text-sm pr-8"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">m</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {[
+                { label: '15m', h: '0', m: '15' },
+                { label: '1h', h: '1', m: '0' },
+                { label: '4h', h: '4', m: '0' },
+                { label: '1d', h: '8', m: '0' },
+                { label: '1w', h: '40', m: '0' },
+              ].map(preset => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => { setTipHours(preset.h); setTipMinutes(preset.m); }}
+                  className={`text-[10px] px-2 py-1 rounded-md border transition-colors
+                    ${tipHours === preset.h && tipMinutes === preset.m
+                      ? 'bg-primary border-primary text-primary-foreground font-semibold'
+                      : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                    }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+              {(tipHours || tipMinutes) && (
+                <button
+                  type="button"
+                  onClick={() => { setTipHours(''); setTipMinutes(''); }}
+                  className="text-[10px] px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Description */}
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</Label>
