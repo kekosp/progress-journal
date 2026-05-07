@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench } from 'lucide-react';
 
 type View = 'list' | 'create' | 'edit';
 
@@ -169,6 +169,12 @@ export function InventoryList() {
                       )}
                       {item.returnByDate && (
                         <span className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> Return by {item.returnByDate}</span>
+                      )}
+                      {item.servicedOutside && (
+                        <span className="flex items-center gap-1 text-warning">
+                          <Wrench className="w-3 h-3" /> Service: {item.serviceLocation}
+                          {item.serviceReturnDate ? ` (back ${item.serviceReturnDate})` : ''}
+                        </span>
                       )}
                     </div>
                     {item.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{item.notes}</p>}
