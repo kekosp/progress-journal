@@ -20,12 +20,24 @@ export function saveInventoryItem(item: InventoryItem): void {
     items[index] = { ...item, updatedAt: new Date().toISOString() };
     if (item.status === 'returned' && old.status !== 'returned') {
       logActivity('inventory', 'returned', item.id, item.name, item.returnedTo ? `To: ${item.returnedTo}` : undefined);
+    } else if (item.servicedOutside && !old.servicedOutside) {
+      logActivity('inventory', 'service-sent', item.id, item.name,
+        `${item.serviceLocation ?? ''}${item.serviceStartDate ? ` on ${item.serviceStartDate}` : ''}`.trim() || undefined);
+    } else if (!item.servicedOutside && old.servicedOutside) {
+      logActivity('inventory', 'service-returned', item.id, item.name,
+        item.serviceActualReturnDate ? `Returned ${item.serviceActualReturnDate}` : undefined);
+    } else if (item.servicedOutside && old.servicedOutside && item.serviceActualReturnDate && !old.serviceActualReturnDate) {
+      logActivity('inventory', 'service-returned', item.id, item.name, `Returned ${item.serviceActualReturnDate}`);
     } else {
       logActivity('inventory', 'updated', item.id, item.name);
     }
   } else {
     items.unshift(item);
     logActivity('inventory', 'created', item.id, item.name, `Qty: ${item.quantity} from ${item.takenFrom}`);
+    if (item.servicedOutside) {
+      logActivity('inventory', 'service-sent', item.id, item.name,
+        `${item.serviceLocation ?? ''}${item.serviceStartDate ? ` on ${item.serviceStartDate}` : ''}`.trim() || undefined);
+    }
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
