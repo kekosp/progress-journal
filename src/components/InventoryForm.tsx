@@ -27,6 +27,8 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
   const [servicedOutside, setServicedOutside] = useState(item?.servicedOutside ?? false);
   const [serviceLocation, setServiceLocation] = useState(item?.serviceLocation ?? '');
   const [serviceReturnDate, setServiceReturnDate] = useState(item?.serviceReturnDate ?? '');
+  const [serviceStartDate, setServiceStartDate] = useState(item?.serviceStartDate ?? '');
+  const [serviceActualReturnDate, setServiceActualReturnDate] = useState(item?.serviceActualReturnDate ?? '');
 
   const handleSave = () => {
     if (!name.trim()) {
@@ -58,6 +60,8 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
       servicedOutside: servicedOutside || undefined,
       serviceLocation: servicedOutside ? serviceLocation.trim() || undefined : undefined,
       serviceReturnDate: servicedOutside ? serviceReturnDate || undefined : undefined,
+      serviceStartDate: servicedOutside ? serviceStartDate || undefined : undefined,
+      serviceActualReturnDate: servicedOutside ? serviceActualReturnDate || undefined : undefined,
       createdAt: item?.createdAt ?? now,
       updatedAt: now,
     };
@@ -129,9 +133,19 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
                 <Label className="text-xs font-medium">Service Location *</Label>
                 <Input value={serviceLocation} onChange={e => setServiceLocation(e.target.value)} placeholder="e.g. ABC Repair Shop" maxLength={200} />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Sent on</Label>
+                  <Input type="date" value={serviceStartDate} onChange={e => setServiceStartDate(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Expected Return</Label>
+                  <Input type="date" value={serviceReturnDate} onChange={e => setServiceReturnDate(e.target.value)} />
+                </div>
+              </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Expected Return Date</Label>
-                <Input type="date" value={serviceReturnDate} onChange={e => setServiceReturnDate(e.target.value)} />
+                <Label className="text-xs font-medium">Actual Return Date</Label>
+                <Input type="date" value={serviceActualReturnDate} onChange={e => setServiceActualReturnDate(e.target.value)} />
               </div>
             </div>
           )}
