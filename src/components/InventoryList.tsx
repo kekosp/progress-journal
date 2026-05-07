@@ -21,6 +21,7 @@ export function InventoryList() {
   const [items, setItems] = useState<InventoryItem[]>(getInventoryItems);
   const [editingItem, setEditingItem] = useState<InventoryItem | undefined>();
   const [search, setSearch] = useState('');
+  const [showServicedOnly, setShowServicedOnly] = useState(false);
 
   // Return dialog state
   const [returningItem, setReturningItem] = useState<InventoryItem | null>(null);
@@ -30,15 +31,21 @@ export function InventoryList() {
 
   const filtered = useMemo(() => {
     let list = items;
+    if (showServicedOnly) {
+      list = list.filter(i => i.servicedOutside && i.status === 'in-hand');
+    }
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(i => i.name.toLowerCase().includes(q) || i.takenFrom.toLowerCase().includes(q) || (i.serialNumber?.toLowerCase().includes(q) ?? false));
     }
     return [...list].sort((a, b) => {
+      const aServ = a.servicedOutside && a.status === 'in-hand' ? 1 : 0;
+      const bServ = b.servicedOutside && b.status === 'in-hand' ? 1 : 0;
+      if (aServ !== bServ) return bServ - aServ;
       if (a.status !== b.status) return a.status === 'in-hand' ? -1 : 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [items, search]);
+  }, [items, search, showServicedOnly]);
 
   const handleReturnConfirm = () => {
     if (!returningItem) return;
@@ -81,6 +88,7 @@ export function InventoryList() {
 
   const inHandCount = items.filter(i => i.status === 'in-hand').length;
   const returnedCount = items.filter(i => i.status === 'returned').length;
+  const servicedCount = items.filter(i => i.servicedOutside && i.status === 'in-hand').length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -128,6 +136,20 @@ export function InventoryList() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search items or locations..." className="pl-9 bg-background border-border text-sm h-9" />
           </div>
+          {servicedCount > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={showServicedOnly ? 'default' : 'outline'}
+                onClick={() => setShowServicedOnly(v => !v)}
+                className="h-7 gap-1.5 text-xs"
+              >
+                <Wrench className="w-3.5 h-3.5" />
+                Out for service
+                <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{servicedCount}</Badge>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
