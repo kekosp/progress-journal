@@ -4,7 +4,7 @@ const LOG_KEY = 'activity-log';
 const MAX_ENTRIES = 500;
 
 export type ActivityModule = 'report' | 'maintenance' | 'inventory';
-export type ActivityAction = 'created' | 'updated' | 'deleted' | 'completed' | 'archived' | 'returned' | 'exported' | 'imported' | 'signed';
+export type ActivityAction = 'created' | 'updated' | 'deleted' | 'completed' | 'archived' | 'returned' | 'exported' | 'imported' | 'signed' | 'service-sent' | 'service-returned';
 
 export interface ActivityEntry {
   id: string;
