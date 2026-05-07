@@ -83,6 +83,17 @@ export function InventoryList() {
     return null;
   };
 
+  const getServiceReturnBadge = (item: InventoryItem) => {
+    if (!item.servicedOutside || item.serviceActualReturnDate || !item.serviceReturnDate) return null;
+    const due = new Date(item.serviceReturnDate + 'T00:00:00');
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const days = Math.round((due.getTime() - now.getTime()) / 86400000);
+    if (days < 0) return <Badge variant="destructive" className="text-[10px]">Service overdue {Math.abs(days)}d</Badge>;
+    if (days === 0) return <Badge className="bg-warning text-warning-foreground text-[10px]">Service due today</Badge>;
+    return <Badge variant="outline" className="text-[10px]">Service back in {days}d</Badge>;
+  };
+
   if (view === 'create') return <InventoryForm onBack={() => setView('list')} onSaved={() => { refresh(); setView('list'); }} />;
   if (view === 'edit' && editingItem) return <InventoryForm item={editingItem} onBack={() => setView('list')} onSaved={() => { refresh(); setView('list'); }} />;
 
@@ -179,6 +190,7 @@ export function InventoryList() {
                         {item.status === 'in-hand' ? 'In Hand' : 'Returned'}
                       </Badge>
                       {getDueBadge(item)}
+                      {getServiceReturnBadge(item)}
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><Package className="w-3 h-3" /> Qty: {item.quantity}</span>
