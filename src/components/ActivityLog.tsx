@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   ClipboardList, Calendar, Package, Plus, Pencil, Trash2, CheckCircle2, Archive,
-  RotateCcw, FileDown, FileUp, PenLine, History, FilterX, LogOut
+  RotateCcw, FileDown, FileUp, PenLine, History, FilterX, LogOut, Wrench
 } from 'lucide-react';
 
 const MODULE_META: Record<ActivityModule, { label: string; Icon: React.ElementType; color: string }> = {
@@ -25,6 +25,8 @@ const ACTION_META: Record<ActivityAction, { label: string; Icon: React.ElementTy
   exported:  { label: 'Exported',  Icon: FileDown },
   imported:  { label: 'Imported',  Icon: FileUp },
   signed:    { label: 'Signed',    Icon: PenLine },
+  'service-sent':     { label: 'Sent for service', Icon: Wrench },
+  'service-returned': { label: 'Back from service', Icon: RotateCcw },
 };
 
 function relativeTime(iso: string): string {
