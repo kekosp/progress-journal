@@ -12,6 +12,9 @@ export interface InventoryItem {
   returnedDate?: string;      // ISO date – when actually returned
   status: InventoryStatus;
   notes?: string;
+  servicedOutside?: boolean;
+  serviceLocation?: string;     // where it's being serviced
+  serviceReturnDate?: string;   // ISO date – expected return from service
   createdAt: string;
   updatedAt: string;
 }

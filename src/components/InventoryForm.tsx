@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save } from 'lucide-react';
 
 interface Props {
@@ -23,6 +24,9 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
   const [receivedDate, setReceivedDate] = useState(item?.receivedDate ?? new Date().toISOString().slice(0, 10));
   const [returnByDate, setReturnByDate] = useState(item?.returnByDate ?? '');
   const [notes, setNotes] = useState(item?.notes ?? '');
+  const [servicedOutside, setServicedOutside] = useState(item?.servicedOutside ?? false);
+  const [serviceLocation, setServiceLocation] = useState(item?.serviceLocation ?? '');
+  const [serviceReturnDate, setServiceReturnDate] = useState(item?.serviceReturnDate ?? '');
 
   const handleSave = () => {
     if (!name.trim()) {
@@ -31,6 +35,10 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
     }
     if (!takenFrom.trim()) {
       toast({ title: 'Taken from location is required', variant: 'destructive' });
+      return;
+    }
+    if (servicedOutside && !serviceLocation.trim()) {
+      toast({ title: 'Service location is required', variant: 'destructive' });
       return;
     }
 
@@ -47,6 +55,9 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
       returnedDate: item?.returnedDate,
       status: item?.status ?? 'in-hand',
       notes: notes.trim() || undefined,
+      servicedOutside: servicedOutside || undefined,
+      serviceLocation: servicedOutside ? serviceLocation.trim() || undefined : undefined,
+      serviceReturnDate: servicedOutside ? serviceReturnDate || undefined : undefined,
       createdAt: item?.createdAt ?? now,
       updatedAt: now,
     };
@@ -103,6 +114,27 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Notes</Label>
           <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any extra details..." rows={3} className="bg-card" maxLength={2000} />
+        </div>
+
+        <div className="space-y-2 rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center gap-2">
+            <Checkbox id="servicedOutside" checked={servicedOutside} onCheckedChange={v => setServicedOutside(!!v)} />
+            <Label htmlFor="servicedOutside" className="text-xs font-medium cursor-pointer">
+              Serviced outside the company
+            </Label>
+          </div>
+          {servicedOutside && (
+            <div className="space-y-3 pt-1">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Service Location *</Label>
+                <Input value={serviceLocation} onChange={e => setServiceLocation(e.target.value)} placeholder="e.g. ABC Repair Shop" maxLength={200} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Expected Return Date</Label>
+                <Input type="date" value={serviceReturnDate} onChange={e => setServiceReturnDate(e.target.value)} />
+              </div>
+            </div>
+          )}
         </div>
 
         <Button onClick={handleSave} className="w-full gap-2">
