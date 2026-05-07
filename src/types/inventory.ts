@@ -3,6 +3,7 @@ export type InventoryStatus = 'in-hand' | 'returned';
 export interface InventoryItem {
   id: string;
   name: string;
+  serialNumber?: string;
   quantity: number;
   takenFrom: string;          // where the item was taken from
   returnedTo?: string;        // where the item was put back

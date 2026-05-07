@@ -17,6 +17,7 @@ interface Props {
 export function InventoryForm({ item, onBack, onSaved }: Props) {
   const isEdit = !!item;
   const [name, setName] = useState(item?.name ?? '');
+  const [serialNumber, setSerialNumber] = useState(item?.serialNumber ?? '');
   const [quantity, setQuantity] = useState(item?.quantity ?? 1);
   const [takenFrom, setTakenFrom] = useState(item?.takenFrom ?? '');
   const [receivedDate, setReceivedDate] = useState(item?.receivedDate ?? new Date().toISOString().slice(0, 10));
@@ -37,6 +38,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
     const record: InventoryItem = {
       id: item?.id ?? generateInventoryId(),
       name: name.trim(),
+      serialNumber: serialNumber.trim() || undefined,
       quantity,
       takenFrom: takenFrom.trim(),
       returnedTo: item?.returnedTo,
@@ -69,6 +71,11 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Item Name *</Label>
           <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Angle grinder" className="bg-card" maxLength={200} />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Serial Number</Label>
+          <Input value={serialNumber} onChange={e => setSerialNumber(e.target.value)} placeholder="e.g. SN-12345" className="bg-card" maxLength={100} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

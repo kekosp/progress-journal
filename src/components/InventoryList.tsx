@@ -32,7 +32,7 @@ export function InventoryList() {
     let list = items;
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter(i => i.name.toLowerCase().includes(q) || i.takenFrom.toLowerCase().includes(q));
+      list = list.filter(i => i.name.toLowerCase().includes(q) || i.takenFrom.toLowerCase().includes(q) || (i.serialNumber?.toLowerCase().includes(q) ?? false));
     }
     return [...list].sort((a, b) => {
       if (a.status !== b.status) return a.status === 'in-hand' ? -1 : 1;
@@ -160,6 +160,9 @@ export function InventoryList() {
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><Package className="w-3 h-3" /> Qty: {item.quantity}</span>
+                      {item.serialNumber && (
+                        <span className="flex items-center gap-1">SN: {item.serialNumber}</span>
+                      )}
                       <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> From: {item.takenFrom}</span>
                       {item.returnedTo && (
                         <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> To: {item.returnedTo}</span>
