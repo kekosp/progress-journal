@@ -77,7 +77,9 @@ function inventoryToRows(items: InventoryItem[]) {
     Notes: i.notes || '',
     'Serviced Outside': i.servicedOutside ? 'Yes' : 'No',
     'Service Location': i.serviceLocation || '',
-    'Service Return Date': i.serviceReturnDate || '',
+    'Service Sent On': i.serviceStartDate || '',
+    'Service Expected Return': i.serviceReturnDate || '',
+    'Service Actual Return': i.serviceActualReturnDate || '',
     Created: new Date(i.createdAt).toLocaleString(),
     Updated: new Date(i.updatedAt).toLocaleString(),
   }));
