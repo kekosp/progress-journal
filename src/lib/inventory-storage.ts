@@ -1,18 +1,28 @@
 import { InventoryItem } from '@/types/inventory';
 import { logActivity } from '@/lib/activity-log';
-import { getEvents, saveEvent, deleteEvent, MaintenanceEvent } from '@/lib/maintenance-storage';
+import { getEvents, MaintenanceEvent } from '@/lib/maintenance-storage';
 
 const STORAGE_KEY = 'inventory-data';
+const SCHEDULE_KEY = 'maintenance-schedule';
 
-/** Mirror an item's expected service-return date as a maintenance calendar event. */
+/**
+ * Mirror an item's expected service-return date as a maintenance calendar event.
+ * Runs on every save/delete so changes to servicedOutside, serviceReturnDate,
+ * serviceActualReturnDate or status are immediately reflected on the calendar.
+ * Writes directly to the schedule store to avoid polluting the activity log.
+ */
 function syncServiceCalendarEvent(item: InventoryItem): void {
   const eventId = `svc_${item.id}`;
   const events = getEvents();
-  const existing = events.find(e => e.id === eventId);
+  const existingIdx = events.findIndex(e => e.id === eventId);
+  const existing = existingIdx >= 0 ? events[existingIdx] : undefined;
   const shouldExist = !!(item.servicedOutside && item.serviceReturnDate && !item.serviceActualReturnDate && item.status === 'in-hand');
 
   if (!shouldExist) {
-    if (existing) deleteEvent(eventId);
+    if (existing) {
+      events.splice(existingIdx, 1);
+      localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
+    }
     return;
   }
 
@@ -26,7 +36,9 @@ function syncServiceCalendarEvent(item: InventoryItem): void {
     completed: existing?.completed ?? false,
     completedAt: existing?.completedAt,
   };
-  saveEvent(event);
+  if (existingIdx >= 0) events[existingIdx] = event;
+  else events.push(event);
+  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(events));
 }
 
 export function getInventoryItems(): InventoryItem[] {
@@ -76,7 +88,11 @@ export function deleteInventoryItem(id: string): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items.filter(i => i.id !== id)));
   // Remove any linked service calendar event
   const eventId = `svc_${id}`;
-  if (getEvents().some(e => e.id === eventId)) deleteEvent(eventId);
+  const events = getEvents();
+  const filtered = events.filter(e => e.id !== eventId);
+  if (filtered.length !== events.length) {
+    localStorage.setItem(SCHEDULE_KEY, JSON.stringify(filtered));
+  }
 }
 
 export function getInventoryItemById(id: string): InventoryItem | undefined {
