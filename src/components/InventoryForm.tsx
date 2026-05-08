@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Save, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Minus, ScanLine } from 'lucide-react';
+import { BarcodeScanner } from '@/components/BarcodeScanner';
 
 interface Props {
   item?: InventoryItem;
@@ -37,6 +38,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
   const [serviceReturnDate, setServiceReturnDate] = useState(item?.serviceReturnDate ?? '');
   const [serviceStartDate, setServiceStartDate] = useState(item?.serviceStartDate ?? '');
   const [serviceActualReturnDate, setServiceActualReturnDate] = useState(item?.serviceActualReturnDate ?? '');
+  const [scanTarget, setScanTarget] = useState<number | 'all' | null>(null);
 
   const updateQuantity = (next: number) => {
     const q = Math.max(1, Math.min(999, next));
@@ -50,6 +52,32 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
 
   const updateSerial = (idx: number, value: string) => {
     setSerials(prev => prev.map((s, i) => (i === idx ? value : s)));
+  };
+
+  const handleScanned = (code: string) => {
+    const value = code.trim();
+    if (!value) return;
+    setSerials(prev => {
+      if (scanTarget === 'all') {
+        // Fill next empty slot; ignore if duplicate already in list
+        if (prev.includes(value)) {
+          toast({ title: 'Duplicate skipped', description: value });
+          return prev;
+        }
+        const nextEmpty = prev.findIndex(s => !s.trim());
+        if (nextEmpty === -1) {
+          toast({ title: 'All units already have serials' });
+          return prev;
+        }
+        const updated = prev.map((s, i) => (i === nextEmpty ? value : s));
+        toast({ title: `Unit ${nextEmpty + 1} captured`, description: value });
+        return updated;
+      }
+      if (typeof scanTarget === 'number') {
+        return prev.map((s, i) => (i === scanTarget ? value : s));
+      }
+      return prev;
+    });
   };
 
   const handleSave = () => {
@@ -136,9 +164,11 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
             <Label className="text-xs font-medium">
               {quantity > 1 ? `Serial Numbers (${serials.filter(s => s.trim()).length}/${quantity})` : 'Serial Number'}
             </Label>
-            {quantity > 1 && (
-              <span className="text-[10px] text-muted-foreground">Optional, one per unit</span>
-            )}
+            {quantity > 1 ? (
+              <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={() => setScanTarget('all')}>
+                <ScanLine className="w-3.5 h-3.5" /> Scan all
+              </Button>
+            ) : null}
           </div>
           <div className="space-y-1.5">
             {serials.map((sn, idx) => (
@@ -160,6 +190,9 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
                     }
                   }}
                 />
+                <Button type="button" size="sm" variant="outline" className="h-10 w-10 p-0 shrink-0" onClick={() => setScanTarget(idx)} title="Scan barcode">
+                  <ScanLine className="w-4 h-4" />
+                </Button>
               </div>
             ))}
           </div>
@@ -216,6 +249,13 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
           <Save className="w-4 h-4" /> {isEdit ? 'Update Item' : 'Add Item'}
         </Button>
       </div>
+
+      <BarcodeScanner
+        open={scanTarget !== null}
+        continuous={scanTarget === 'all'}
+        onClose={() => setScanTarget(null)}
+        onDetected={handleScanned}
+      />
     </div>
   );
 }
