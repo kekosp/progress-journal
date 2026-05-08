@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Report, ReportCategory, ReportPriority, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/report';
 import { getReports, getReportById } from '@/lib/storage';
 import { getUpcomingCount, getDueSoonEvents } from '@/lib/maintenance-storage';
-import { getInventoryDueCount, getDueSoonInventory } from '@/lib/inventory-storage';
+import { getInventoryDueCount, getDueSoonInventory, getDueSoonService } from '@/lib/inventory-storage';
 import { toast } from '@/hooks/use-toast';
 import { ReportCard } from '@/components/ReportCard';
 import { ReportForm } from '@/components/ReportForm';
@@ -113,6 +113,38 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
         title: '📦 Inventory Returns',
         description: invParts.join(', ') + '. Tap Inventory to review.',
       });
+    }
+
+    // Service-return alerts (items being serviced outside the company)
+    const svcAlerts = getDueSoonService();
+    if (svcAlerts.length > 0) {
+      const overdue = svcAlerts.filter(a => a.isOverdue);
+      const svcToday = svcAlerts.filter(a => a.isToday);
+      const svcTomorrow = svcAlerts.filter(a => a.isTomorrow);
+      const parts: string[] = [];
+      if (overdue.length) parts.push(`${overdue.length} overdue`);
+      if (svcToday.length) parts.push(`${svcToday.length} due today`);
+      if (svcTomorrow.length) parts.push(`${svcTomorrow.length} due tomorrow`);
+      const names = [...overdue, ...svcToday, ...svcTomorrow]
+        .slice(0, 3).map(a => a.item.name).join(', ');
+      const description = `${parts.join(', ')}: ${names}${svcAlerts.length > 3 ? '…' : ''}. Tap Inventory or Calendar.`;
+      toast({ title: '🔧 Serviced items', description });
+
+      // Optional browser push notification
+      if (typeof Notification !== 'undefined') {
+        const fire = () => {
+          try {
+            new Notification('Serviced items due', {
+              body: description,
+              tag: 'service-due',
+            });
+          } catch { /* ignore */ }
+        };
+        if (Notification.permission === 'granted') fire();
+        else if (Notification.permission === 'default') {
+          Notification.requestPermission().then(p => { if (p === 'granted') fire(); }).catch(() => {});
+        }
+      }
     }
   }, []);
 
