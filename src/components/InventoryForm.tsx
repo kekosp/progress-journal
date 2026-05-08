@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Minus } from 'lucide-react';
 
 interface Props {
   item?: InventoryItem;
@@ -18,8 +18,16 @@ interface Props {
 export function InventoryForm({ item, onBack, onSaved }: Props) {
   const isEdit = !!item;
   const [name, setName] = useState(item?.name ?? '');
-  const [serialNumber, setSerialNumber] = useState(item?.serialNumber ?? '');
+  const initialSerials = item?.serialNumbers && item.serialNumbers.length > 0
+    ? item.serialNumbers
+    : item?.serialNumber ? [item.serialNumber] : [''];
   const [quantity, setQuantity] = useState(item?.quantity ?? 1);
+  const [serials, setSerials] = useState<string[]>(() => {
+    const q = item?.quantity ?? 1;
+    const arr = [...initialSerials];
+    while (arr.length < q) arr.push('');
+    return arr.slice(0, q);
+  });
   const [takenFrom, setTakenFrom] = useState(item?.takenFrom ?? '');
   const [receivedDate, setReceivedDate] = useState(item?.receivedDate ?? new Date().toISOString().slice(0, 10));
   const [returnByDate, setReturnByDate] = useState(item?.returnByDate ?? '');
@@ -29,6 +37,20 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
   const [serviceReturnDate, setServiceReturnDate] = useState(item?.serviceReturnDate ?? '');
   const [serviceStartDate, setServiceStartDate] = useState(item?.serviceStartDate ?? '');
   const [serviceActualReturnDate, setServiceActualReturnDate] = useState(item?.serviceActualReturnDate ?? '');
+
+  const updateQuantity = (next: number) => {
+    const q = Math.max(1, Math.min(999, next));
+    setQuantity(q);
+    setSerials(prev => {
+      const arr = [...prev];
+      while (arr.length < q) arr.push('');
+      return arr.slice(0, q);
+    });
+  };
+
+  const updateSerial = (idx: number, value: string) => {
+    setSerials(prev => prev.map((s, i) => (i === idx ? value : s)));
+  };
 
   const handleSave = () => {
     if (!name.trim()) {
@@ -45,10 +67,12 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
     }
 
     const now = new Date().toISOString();
+    const cleanedSerials = serials.map(s => s.trim()).filter(Boolean);
     const record: InventoryItem = {
       id: item?.id ?? generateInventoryId(),
       name: name.trim(),
-      serialNumber: serialNumber.trim() || undefined,
+      serialNumber: cleanedSerials[0] || undefined,
+      serialNumbers: cleanedSerials.length > 0 ? cleanedSerials : undefined,
       quantity,
       takenFrom: takenFrom.trim(),
       returnedTo: item?.returnedTo,
@@ -88,19 +112,56 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
           <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Angle grinder" className="bg-card" maxLength={200} />
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Serial Number</Label>
-          <Input value={serialNumber} onChange={e => setSerialNumber(e.target.value)} placeholder="e.g. SN-12345" className="bg-card" maxLength={100} />
-        </div>
-
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Quantity</Label>
-            <Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value) || 1)} className="bg-card" />
+            <div className="flex items-center gap-1">
+              <Button type="button" size="sm" variant="outline" className="h-10 w-10 p-0 shrink-0" onClick={() => updateQuantity(quantity - 1)} disabled={quantity <= 1}>
+                <Minus className="w-4 h-4" />
+              </Button>
+              <Input type="number" min={1} value={quantity} onChange={e => updateQuantity(Number(e.target.value) || 1)} className="bg-card text-center" />
+              <Button type="button" size="sm" variant="outline" className="h-10 w-10 p-0 shrink-0" onClick={() => updateQuantity(quantity + 1)}>
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Taken From *</Label>
             <Input value={takenFrom} onChange={e => setTakenFrom(e.target.value)} placeholder="e.g. Main warehouse" className="bg-card" maxLength={200} />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium">
+              {quantity > 1 ? `Serial Numbers (${serials.filter(s => s.trim()).length}/${quantity})` : 'Serial Number'}
+            </Label>
+            {quantity > 1 && (
+              <span className="text-[10px] text-muted-foreground">Optional, one per unit</span>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            {serials.map((sn, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                {quantity > 1 && (
+                  <span className="text-[11px] text-muted-foreground w-6 text-right shrink-0">#{idx + 1}</span>
+                )}
+                <Input
+                  value={sn}
+                  onChange={e => updateSerial(idx, e.target.value)}
+                  placeholder={quantity > 1 ? `Unit ${idx + 1} serial` : 'e.g. SN-12345'}
+                  className="bg-card"
+                  maxLength={100}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && idx < serials.length - 1) {
+                      e.preventDefault();
+                      const next = (e.currentTarget.parentElement?.parentElement?.children[idx + 1]?.querySelector('input')) as HTMLInputElement | null;
+                      next?.focus();
+                    }
+                  }}
+                />
+              </div>
+            ))}
           </div>
         </div>
 

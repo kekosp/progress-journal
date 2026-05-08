@@ -66,7 +66,7 @@ export function exportReportsXlsx(reports: Report[]) {
 function inventoryToRows(items: InventoryItem[]) {
   return items.map(i => ({
     Name: i.name,
-    'Serial Number': i.serialNumber || '',
+    'Serial Number': i.serialNumbers?.length ? i.serialNumbers.join(', ') : (i.serialNumber || ''),
     Quantity: i.quantity,
     Status: i.status === 'in-hand' ? 'In Hand' : 'Returned',
     'Taken From': i.takenFrom,

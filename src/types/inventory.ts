@@ -4,6 +4,7 @@ export interface InventoryItem {
   id: string;
   name: string;
   serialNumber?: string;
+  serialNumbers?: string[]; // per-unit serial numbers when quantity > 1
   quantity: number;
   takenFrom: string;          // where the item was taken from
   returnedTo?: string;        // where the item was put back

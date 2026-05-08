@@ -36,7 +36,12 @@ export function InventoryList() {
     }
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter(i => i.name.toLowerCase().includes(q) || i.takenFrom.toLowerCase().includes(q) || (i.serialNumber?.toLowerCase().includes(q) ?? false));
+      list = list.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        i.takenFrom.toLowerCase().includes(q) ||
+        (i.serialNumber?.toLowerCase().includes(q) ?? false) ||
+        (i.serialNumbers?.some(sn => sn.toLowerCase().includes(q)) ?? false)
+      );
     }
     return [...list].sort((a, b) => {
       const aServ = a.servicedOutside && a.status === 'in-hand' ? 1 : 0;
@@ -194,9 +199,13 @@ export function InventoryList() {
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><Package className="w-3 h-3" /> Qty: {item.quantity}</span>
-                      {item.serialNumber && (
+                      {item.serialNumbers && item.serialNumbers.length > 1 ? (
+                        <span className="flex items-center gap-1" title={item.serialNumbers.join(', ')}>
+                          SN: {item.serialNumbers.slice(0, 2).join(', ')}{item.serialNumbers.length > 2 ? ` +${item.serialNumbers.length - 2}` : ''}
+                        </span>
+                      ) : item.serialNumber ? (
                         <span className="flex items-center gap-1">SN: {item.serialNumber}</span>
-                      )}
+                      ) : null}
                       <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> From: {item.takenFrom}</span>
                       {item.returnedTo && (
                         <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> To: {item.returnedTo}</span>
