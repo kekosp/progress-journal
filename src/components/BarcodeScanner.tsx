@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Flashlight, FlashlightOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
+type TorchConstraints = MediaTrackConstraints & {
+  advanced?: Array<MediaTrackConstraintSet & { torch?: boolean }>;
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -18,9 +22,15 @@ interface Props {
 export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props) {
   const containerId = 'barcode-scanner-region';
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const onCloseRef = useRef(onClose);
+  const onDetectedRef = useRef(onDetected);
+  const handledSingleScanRef = useRef(false);
   const [starting, setStarting] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
+
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useEffect(() => { onDetectedRef.current = onDetected; }, [onDetected]);
 
   useEffect(() => {
     if (!open) return;
@@ -28,6 +38,7 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
     setStarting(true);
     setTorchOn(false);
     setTorchSupported(false);
+    handledSingleScanRef.current = false;
 
     const start = async () => {
       try {
@@ -64,10 +75,12 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
         scannerRef.current = scanner;
         await scanner.start(
           { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 260, height: 160 } },
+          { fps: 6, qrbox: { width: 260, height: 160 } },
           (decoded) => {
-            try { onDetected(decoded); } catch { /* ignore */ }
-            if (!continuous) onClose();
+            if (!continuous && handledSingleScanRef.current) return;
+            handledSingleScanRef.current = true;
+            try { onDetectedRef.current(decoded); } catch { /* ignore */ }
+            if (!continuous) window.setTimeout(() => onCloseRef.current(), 0);
           },
           () => {},
         );
@@ -75,15 +88,8 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
           try { await scanner.stop(); } catch { /* ignore */ }
           return;
         }
-        // Detect torch support on the active video track (best-effort)
-        try {
-          const video = document.querySelector(`#${containerId} video`) as HTMLVideoElement | null;
-          const track = (video?.srcObject as MediaStream | null)?.getVideoTracks?.()[0];
-          const caps = (track && typeof track.getCapabilities === 'function')
-            ? (track.getCapabilities() as MediaTrackCapabilities & { torch?: boolean })
-            : undefined;
-          if (caps && 'torch' in caps && caps.torch) setTorchSupported(true);
-        } catch { /* ignore */ }
+        // Avoid probing MediaStreamTrack capabilities on Android WebView; some devices freeze/crash.
+        setTorchSupported(Capacitor.getPlatform() === 'android');
       } catch (err) {
         const msg = (err as Error)?.message ?? String(err);
         toast({
@@ -108,7 +114,7 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
       if (s) {
         // Only stop if actively scanning to avoid html5-qrcode throwing
         const isScanning = (() => {
-          try { return typeof s.getState === 'function' ? s.getState() === 2 : true; }
+          try { return typeof s.getState === 'function' ? [2, 3].includes(s.getState()) : true; }
           catch { return true; }
         })();
         const stopP = isScanning
@@ -119,15 +125,14 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
         });
       }
     };
-  }, [open, continuous, onDetected, onClose]);
+  }, [open, continuous]);
 
   const toggleTorch = async () => {
     try {
-      const video = document.querySelector(`#${containerId} video`) as HTMLVideoElement | null;
-      const track = (video?.srcObject as MediaStream | null)?.getVideoTracks?.()[0];
-      if (!track) return;
+      const scanner = scannerRef.current;
+      if (!scanner) return;
       const next = !torchOn;
-      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet & { torch: boolean }] });
+      await scanner.applyVideoConstraints({ advanced: [{ torch: next }] } as TorchConstraints);
       setTorchOn(next);
     } catch (err) {
       toast({ title: 'Torch unavailable', description: String((err as Error).message ?? err), variant: 'destructive' });
