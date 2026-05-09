@@ -100,7 +100,7 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
           variant: 'destructive',
         });
         scannerRef.current = null;
-        onClose();
+        onCloseRef.current();
       } finally {
         if (!cancelled) setStarting(false);
       }
