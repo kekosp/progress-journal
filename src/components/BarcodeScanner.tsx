@@ -29,6 +29,10 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
 
     const start = async () => {
       try {
+        // Pre-flight: ensure mediaDevices is available
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('Camera API not available on this device/browser');
+        }
         // Wait for the dialog portal to mount the container element
         for (let i = 0; i < 30; i++) {
           if (document.getElementById(containerId)) break;
@@ -44,21 +48,34 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
           { facingMode: 'environment' },
           { fps: 10, qrbox: { width: 260, height: 160 } },
           (decoded) => {
-            onDetected(decoded);
+            try { onDetected(decoded); } catch { /* ignore */ }
             if (!continuous) onClose();
           },
           () => {},
         );
-        if (cancelled) await scanner.stop().catch(() => {});
-        // Detect torch support on the active video track
+        if (cancelled) {
+          try { await scanner.stop(); } catch { /* ignore */ }
+          return;
+        }
+        // Detect torch support on the active video track (best-effort)
         try {
           const video = document.querySelector(`#${containerId} video`) as HTMLVideoElement | null;
           const track = (video?.srcObject as MediaStream | null)?.getVideoTracks?.()[0];
-          const caps = track?.getCapabilities?.() as (MediaTrackCapabilities & { torch?: boolean }) | undefined;
+          const caps = (track && typeof track.getCapabilities === 'function')
+            ? (track.getCapabilities() as MediaTrackCapabilities & { torch?: boolean })
+            : undefined;
           if (caps && 'torch' in caps && caps.torch) setTorchSupported(true);
         } catch { /* ignore */ }
       } catch (err) {
-        toast({ title: 'Camera unavailable', description: String((err as Error).message ?? err), variant: 'destructive' });
+        const msg = (err as Error)?.message ?? String(err);
+        toast({
+          title: 'Camera unavailable',
+          description: /permission|denied|notallowed/i.test(msg)
+            ? 'Camera permission denied. Enable it in your browser/app settings.'
+            : msg,
+          variant: 'destructive',
+        });
+        scannerRef.current = null;
         onClose();
       } finally {
         if (!cancelled) setStarting(false);
@@ -71,7 +88,15 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
       const s = scannerRef.current;
       scannerRef.current = null;
       if (s) {
-        Promise.resolve(s.stop()).catch(() => {}).finally(() => {
+        // Only stop if actively scanning to avoid html5-qrcode throwing
+        const isScanning = (() => {
+          try { return typeof s.getState === 'function' ? s.getState() === 2 : true; }
+          catch { return true; }
+        })();
+        const stopP = isScanning
+          ? Promise.resolve(s.stop()).catch(() => {})
+          : Promise.resolve();
+        stopP.finally(() => {
           try { s.clear(); } catch { /* ignore */ }
         });
       }
