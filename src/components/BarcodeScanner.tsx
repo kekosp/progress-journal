@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Flashlight, FlashlightOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface Props {
@@ -16,11 +17,15 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
   const containerId = 'barcode-scanner-region';
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [starting, setStarting] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setStarting(true);
+    setTorchOn(false);
+    setTorchSupported(false);
 
     const start = async () => {
       try {
@@ -45,6 +50,13 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
           () => {},
         );
         if (cancelled) await scanner.stop().catch(() => {});
+        // Detect torch support on the active video track
+        try {
+          const video = document.querySelector(`#${containerId} video`) as HTMLVideoElement | null;
+          const track = (video?.srcObject as MediaStream | null)?.getVideoTracks?.()[0];
+          const caps = track?.getCapabilities?.() as (MediaTrackCapabilities & { torch?: boolean }) | undefined;
+          if (caps && 'torch' in caps && caps.torch) setTorchSupported(true);
+        } catch { /* ignore */ }
       } catch (err) {
         toast({ title: 'Camera unavailable', description: String((err as Error).message ?? err), variant: 'destructive' });
         onClose();
@@ -66,6 +78,20 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
     };
   }, [open, continuous, onDetected, onClose]);
 
+  const toggleTorch = async () => {
+    try {
+      const video = document.querySelector(`#${containerId} video`) as HTMLVideoElement | null;
+      const track = (video?.srcObject as MediaStream | null)?.getVideoTracks?.()[0];
+      if (!track) return;
+      const next = !torchOn;
+      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet & { torch: boolean }] });
+      setTorchOn(next);
+    } catch (err) {
+      toast({ title: 'Torch unavailable', description: String((err as Error).message ?? err), variant: 'destructive' });
+      setTorchSupported(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md">
@@ -76,7 +102,15 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
         <p className="text-xs text-muted-foreground text-center">
           {starting ? 'Starting camera…' : continuous ? 'Point at each barcode. Tap Done when finished.' : 'Point camera at the barcode'}
         </p>
-        <Button variant="outline" onClick={onClose}>{continuous ? 'Done' : 'Cancel'}</Button>
+        <div className="flex gap-2">
+          {torchSupported && (
+            <Button type="button" variant={torchOn ? 'default' : 'outline'} onClick={toggleTorch} className="gap-2">
+              {torchOn ? <FlashlightOff className="w-4 h-4" /> : <Flashlight className="w-4 h-4" />}
+              {torchOn ? 'Torch off' : 'Torch on'}
+            </Button>
+          )}
+          <Button variant="outline" onClick={onClose} className="flex-1">{continuous ? 'Done' : 'Cancel'}</Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
