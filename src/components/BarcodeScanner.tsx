@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Flashlight, FlashlightOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -122,6 +122,9 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Scan barcode / QR</DialogTitle>
+          <DialogDescription className="sr-only">
+            Use your device camera to scan a barcode or QR code.
+          </DialogDescription>
         </DialogHeader>
         <div id={containerId} className="w-full overflow-hidden rounded-md bg-black aspect-[4/3]" />
         <p className="text-xs text-muted-foreground text-center">
