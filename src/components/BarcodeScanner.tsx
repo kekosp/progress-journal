@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { Camera } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Flashlight, FlashlightOff } from 'lucide-react';
@@ -29,6 +31,22 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
 
     const start = async () => {
       try {
+        // On native (Android/iOS), ensure camera permission is granted first.
+        // Without this, the WebView's getUserMedia returns NotAllowedError.
+        if (Capacitor.isNativePlatform()) {
+          try {
+            const status = await Camera.checkPermissions();
+            if (status.camera !== 'granted' && status.camera !== 'limited') {
+              const req = await Camera.requestPermissions({ permissions: ['camera'] });
+              if (req.camera !== 'granted' && req.camera !== 'limited') {
+                throw new Error('Camera permission denied. Enable Camera for this app in Android Settings → Apps.');
+              }
+            }
+          } catch (permErr) {
+            // If the plugin itself errors, surface a clear message
+            throw new Error((permErr as Error)?.message ?? 'Unable to request camera permission');
+          }
+        }
         // Pre-flight: ensure mediaDevices is available
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error('Camera API not available on this device/browser');
