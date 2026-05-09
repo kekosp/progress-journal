@@ -24,6 +24,15 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
 
     const start = async () => {
       try {
+        // Wait for the dialog portal to mount the container element
+        for (let i = 0; i < 30; i++) {
+          if (document.getElementById(containerId)) break;
+          await new Promise(r => setTimeout(r, 50));
+        }
+        if (cancelled) return;
+        if (!document.getElementById(containerId)) {
+          throw new Error('Scanner container failed to mount');
+        }
         const scanner = new Html5Qrcode(containerId, { verbose: false });
         scannerRef.current = scanner;
         await scanner.start(
