@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Reports</string>
+    <string name="title_activity_main">Reports</string>
+    <string name="package_name">app.lovable.k541b7c83680c47fe8dfc25833fe24b42</string>
+    <string name="custom_url_scheme">app.lovable.k541b7c83680c47fe8dfc25833fe24b42</string>
+</resources>
