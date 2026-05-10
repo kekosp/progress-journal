@@ -8,8 +8,13 @@ import { Flashlight, FlashlightOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 type TorchConstraints = MediaTrackConstraints & {
+  torch?: boolean;
   advanced?: Array<MediaTrackConstraintSet & { torch?: boolean }>;
 };
+
+type TorchSettings = MediaTrackSettings & { torch?: boolean };
+
+type TorchSupportedConstraints = MediaTrackSupportedConstraints & { torch?: boolean };
 
 interface Props {
   open: boolean;
@@ -31,6 +36,22 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
 
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   useEffect(() => { onDetectedRef.current = onDetected; }, [onDetected]);
+
+  const detectTorchSupport = (scanner: Html5Qrcode) => {
+    try {
+      const constraints = navigator.mediaDevices.getSupportedConstraints() as TorchSupportedConstraints;
+      if (constraints.torch === false) return false;
+    } catch {
+      return false;
+    }
+
+    try {
+      const settings = scanner.getRunningTrackSettings?.() as TorchSettings;
+      return 'torch' in settings;
+    } catch {
+      return false;
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -88,8 +109,7 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
           try { await scanner.stop(); } catch { /* ignore */ }
           return;
         }
-        // Avoid probing MediaStreamTrack capabilities on Android WebView; some devices freeze/crash.
-        setTorchSupported(Capacitor.getPlatform() === 'android');
+        setTorchSupported(detectTorchSupport(scanner));
       } catch (err) {
         const msg = (err as Error)?.message ?? String(err);
         toast({
@@ -132,10 +152,11 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
       const scanner = scannerRef.current;
       if (!scanner) return;
       const next = !torchOn;
-      await scanner.applyVideoConstraints({ advanced: [{ torch: next }] } as TorchConstraints);
+      await scanner.applyVideoConstraints({ torch: next, advanced: [{ torch: next }] } as TorchConstraints);
       setTorchOn(next);
     } catch (err) {
-      toast({ title: 'Torch unavailable', description: String((err as Error).message ?? err), variant: 'destructive' });
+      toast({ title: 'Torch unavailable', description: 'Flashlight is not supported by this camera/browser.' });
+      setTorchOn(false);
       setTorchSupported(false);
     }
   };
