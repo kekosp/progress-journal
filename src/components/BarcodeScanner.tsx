@@ -94,9 +94,27 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
         }
         const scanner = new Html5Qrcode(containerId, { verbose: false });
         scannerRef.current = scanner;
+        // Request high-resolution stream with continuous autofocus so small
+        // barcodes and close-up scans stay sharp.
+        const videoConstraints = {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 },
+          focusMode: 'continuous',
+          advanced: [
+            { focusMode: 'continuous' },
+            { focusMode: 'auto' },
+          ],
+        } as unknown as MediaTrackConstraints;
+        // Make scan box adapt to viewport so users can fill it with the barcode.
+        const qrbox = (vw: number, vh: number) => {
+          const side = Math.floor(Math.min(vw, vh) * 0.8);
+          return { width: side, height: Math.floor(side * 0.65) };
+        };
         await scanner.start(
-          { facingMode: 'environment' },
-          { fps: 6, qrbox: { width: 260, height: 160 } },
+          videoConstraints,
+          { fps: 15, qrbox, aspectRatio: 1.3333 },
           (decoded) => {
             if (!continuous && handledSingleScanRef.current) return;
             handledSingleScanRef.current = true;
@@ -109,6 +127,14 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
           try { await scanner.stop(); } catch { /* ignore */ }
           return;
         }
+        // After the stream is live, re-apply continuous autofocus. Some Android
+        // cameras only honor the focus hint via applyConstraints post-start.
+        try {
+          await scanner.applyVideoConstraints({
+            focusMode: 'continuous',
+            advanced: [{ focusMode: 'continuous' }],
+          } as unknown as MediaTrackConstraints);
+        } catch { /* ignore — not all cameras support it */ }
         setTorchSupported(detectTorchSupport(scanner));
       } catch (err) {
         const msg = (err as Error)?.message ?? String(err);
