@@ -91,7 +91,7 @@ export function AuthSetupModal({ open, onClose }: Props) {
   }
 
   async function handleSavePassword() {
-    if (password.length < 4) { setError('Password must be at least 4 characters.'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     if (password !== confirmPassword) { setError("Passwords don't match."); return; }
     setBusy(true);
     await setupAuth('password', password);
