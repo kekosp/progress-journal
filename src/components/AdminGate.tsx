@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { isAdminSetup, setupAdmin, verifyAdmin } from '@/lib/admin-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,22 @@ import { Shield, Eye, EyeOff, AlertCircle, UserPlus, LogIn } from 'lucide-react'
 interface Props {
   children: React.ReactNode | ((opts: { onLogout: () => void }) => React.ReactNode);
 }
+
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_KEY = 'admin-lock-attempts';
+const BASE_LOCKOUT_SECONDS = 30;
+
+interface LockoutState { attempts: number; lockedUntil: number | null; }
+
+function readLockout(): LockoutState {
+  try {
+    const raw = localStorage.getItem(LOCKOUT_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return { attempts: 0, lockedUntil: null };
+}
+function writeLockout(s: LockoutState) { localStorage.setItem(LOCKOUT_KEY, JSON.stringify(s)); }
+function clearLockout() { localStorage.removeItem(LOCKOUT_KEY); }
 
 export function AdminGate({ children }: Props) {
   const [authenticated, setAuthenticated] = useState(false);
@@ -19,10 +35,28 @@ export function AdminGate({ children }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const initial = readLockout();
+  const [attempts, setAttempts] = useState(initial.attempts);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(initial.lockedUntil);
+  const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
+  const [lockTimer, setLockTimer] = useState(() => isLocked ? Math.ceil((lockedUntil! - Date.now()) / 1000) : 0);
+
+  useEffect(() => {
+    if (!lockedUntil) return;
+    const tick = () => {
+      const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (remaining <= 0) { setLockTimer(0); setError(''); }
+      else setLockTimer(remaining);
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [lockedUntil]);
 
   if (authenticated) return <>{typeof children === 'function' ? children({ onLogout: handleLogout }) : children}</>;
 
   const handleSubmit = async () => {
+    if (isLocked) return;
     if (!username.trim() || !password.trim()) {
       setError('Username and password are required');
       return;
@@ -37,19 +71,35 @@ export function AdminGate({ children }: Props) {
         setLoading(false);
         return;
       }
-      if (password.length < 4) {
-        setError('Password must be at least 4 characters');
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters');
         setLoading(false);
         return;
       }
       await setupAdmin(username.trim(), password);
+      clearLockout();
       setAuthenticated(true);
     } else {
       const ok = await verifyAdmin(username.trim(), password);
       if (ok) {
+        clearLockout();
         setAuthenticated(true);
       } else {
-        setError('Invalid username or password');
+        const next = attempts + 1;
+        setAttempts(next);
+        setPassword('');
+        if (next >= MAX_ATTEMPTS) {
+          const multiplier = Math.pow(2, Math.floor(next / MAX_ATTEMPTS) - 1);
+          const lockoutSeconds = Math.min(BASE_LOCKOUT_SECONDS * multiplier, 900);
+          const until = Date.now() + lockoutSeconds * 1000;
+          setLockedUntil(until);
+          writeLockout({ attempts: next, lockedUntil: until });
+          setError(`Too many attempts. Wait ${lockoutSeconds} seconds.`);
+        } else {
+          writeLockout({ attempts: next, lockedUntil: null });
+          const left = MAX_ATTEMPTS - (next % MAX_ATTEMPTS || MAX_ATTEMPTS);
+          setError(`Invalid username or password. ${left} attempt${left !== 1 ? 's' : ''} left.`);
+        }
       }
     }
     setLoading(false);
@@ -113,13 +163,13 @@ export function AdminGate({ children }: Props) {
           {error && (
             <div className="flex items-center gap-1.5 text-destructive text-xs">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              {error}
+              {isLocked ? `${error} (${lockTimer}s)` : error}
             </div>
           )}
 
-          <Button className="w-full h-12 text-base gap-2" onClick={handleSubmit} disabled={loading}>
+          <Button className="w-full h-12 text-base gap-2" onClick={handleSubmit} disabled={loading || isLocked}>
             {mode === 'setup' ? <UserPlus className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
-            {loading ? 'Please wait…' : mode === 'setup' ? 'Create Admin' : 'Login'}
+            {isLocked ? `Locked (${lockTimer}s)` : loading ? 'Please wait…' : mode === 'setup' ? 'Create Admin' : 'Login'}
           </Button>
         </div>
       </div>
