@@ -96,19 +96,17 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
         scannerRef.current = scanner;
         // Request high-resolution stream with continuous autofocus so small
         // barcodes and close-up scans stay sharp.
-        const videoConstraints: MediaTrackConstraints = {
+        const videoConstraints = {
           facingMode: { ideal: 'environment' },
           width: { ideal: 1920 },
           height: { ideal: 1080 },
           frameRate: { ideal: 30 },
-          // @ts-expect-error non-standard but widely supported on Android
           focusMode: 'continuous',
           advanced: [
-            // @ts-expect-error advanced focus hints for Chromium/Android
             { focusMode: 'continuous' },
             { focusMode: 'auto' },
           ],
-        };
+        } as unknown as MediaTrackConstraints;
         // Make scan box adapt to viewport so users can fill it with the barcode.
         const qrbox = (vw: number, vh: number) => {
           const side = Math.floor(Math.min(vw, vh) * 0.8);
@@ -133,13 +131,9 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
         // cameras only honor the focus hint via applyConstraints post-start.
         try {
           await scanner.applyVideoConstraints({
-            // @ts-expect-error non-standard
             focusMode: 'continuous',
-            advanced: [
-              // @ts-expect-error
-              { focusMode: 'continuous' },
-            ],
-          } as MediaTrackConstraints);
+            advanced: [{ focusMode: 'continuous' }],
+          } as unknown as MediaTrackConstraints);
         } catch { /* ignore — not all cameras support it */ }
         setTorchSupported(detectTorchSupport(scanner));
       } catch (err) {
