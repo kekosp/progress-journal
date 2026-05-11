@@ -94,8 +94,9 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
         }
         const scanner = new Html5Qrcode(containerId, { verbose: false });
         scannerRef.current = scanner;
-        // Request high-resolution stream with continuous autofocus so small
-        // barcodes and close-up scans stay sharp.
+        // Rich video constraints (resolution + continuous autofocus) go into
+        // the config's `videoConstraints`. The first argument to start() must
+        // be a single-key object (deviceId OR facingMode) per html5-qrcode.
         const videoConstraints = {
           facingMode: { ideal: 'environment' },
           width: { ideal: 1920 },
@@ -113,8 +114,8 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
           return { width: side, height: Math.floor(side * 0.65) };
         };
         await scanner.start(
-          videoConstraints,
-          { fps: 15, qrbox, aspectRatio: 1.3333 },
+          { facingMode: 'environment' },
+          { fps: 15, qrbox, aspectRatio: 1.3333, videoConstraints },
           (decoded) => {
             if (!continuous && handledSingleScanRef.current) return;
             handledSingleScanRef.current = true;
