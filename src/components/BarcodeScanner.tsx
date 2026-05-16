@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Camera } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -13,17 +13,33 @@ type TorchConstraints = MediaTrackConstraints & {
 };
 
 type TorchSettings = MediaTrackSettings & { torch?: boolean };
-
 type TorchSupportedConstraints = MediaTrackSupportedConstraints & { torch?: boolean };
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onDetected: (code: string) => void;
+  onDetected: (code: string, format?: string) => void;
   continuous?: boolean;
 }
 
-/** Camera-based barcode/QR scanner overlay using html5-qrcode. */
+// ✅ كل الـ formats المدعومة في html5-qrcode
+const ALL_FORMATS = [
+  Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.DATA_MATRIX,
+  Html5QrcodeSupportedFormats.AZTEC,
+  Html5QrcodeSupportedFormats.PDF_417,
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.CODE_93,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODABAR,
+  Html5QrcodeSupportedFormats.ITF,
+  Html5QrcodeSupportedFormats.MAXICODE,
+];
+
 export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props) {
   const containerId = 'barcode-scanner-region';
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -41,16 +57,11 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
     try {
       const constraints = navigator.mediaDevices.getSupportedConstraints() as TorchSupportedConstraints;
       if (constraints.torch === false) return false;
-    } catch {
-      return false;
-    }
-
+    } catch { return false; }
     try {
       const settings = scanner.getRunningTrackSettings?.() as TorchSettings;
       return 'torch' in settings;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   };
 
   useEffect(() => {
@@ -63,27 +74,20 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
 
     const start = async () => {
       try {
-        // On native (Android/iOS), ensure camera permission is granted first.
-        // Without this, the WebView's getUserMedia returns NotAllowedError.
         if (Capacitor.isNativePlatform()) {
-          try {
-            const status = await Camera.checkPermissions();
-            if (status.camera !== 'granted' && status.camera !== 'limited') {
-              const req = await Camera.requestPermissions({ permissions: ['camera'] });
-              if (req.camera !== 'granted' && req.camera !== 'limited') {
-                throw new Error('Camera permission denied. Enable Camera for this app in Android Settings → Apps.');
-              }
+          const status = await Camera.checkPermissions();
+          if (status.camera !== 'granted' && status.camera !== 'limited') {
+            const req = await Camera.requestPermissions({ permissions: ['camera'] });
+            if (req.camera !== 'granted' && req.camera !== 'limited') {
+              throw new Error('Camera permission denied. Enable Camera in Android Settings → Apps.');
             }
-          } catch (permErr) {
-            // If the plugin itself errors, surface a clear message
-            throw new Error((permErr as Error)?.message ?? 'Unable to request camera permission');
           }
         }
-        // Pre-flight: ensure mediaDevices is available
+
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error('Camera API not available on this device/browser');
         }
-        // Wait for the dialog portal to mount the container element
+
         for (let i = 0; i < 30; i++) {
           if (document.getElementById(containerId)) break;
           await new Promise(r => setTimeout(r, 50));
@@ -92,50 +96,69 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
         if (!document.getElementById(containerId)) {
           throw new Error('Scanner container failed to mount');
         }
-        const scanner = new Html5Qrcode(containerId, { verbose: false });
+
+        // ✅ FIX 1: تفعيل كل الـ formats
+        const scanner = new Html5Qrcode(containerId, {
+          verbose: false,
+          formatsToSupport: ALL_FORMATS,
+          // ✅ FIX 2: تفعيل experimentalFeatures لتحسين القراءة على Android
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true,
+          },
+        });
         scannerRef.current = scanner;
-        // Rich video constraints (resolution + continuous autofocus) go into
-        // the config's `videoConstraints`. The first argument to start() must
-        // be a single-key object (deviceId OR facingMode) per html5-qrcode.
+
         const videoConstraints = {
           facingMode: { ideal: 'environment' },
           width: { ideal: 1920 },
           height: { ideal: 1080 },
           frameRate: { ideal: 30 },
+          // ✅ FIX 2: إضافة continuous autofocus صح على Android
           focusMode: 'continuous',
           advanced: [
             { focusMode: 'continuous' },
             { focusMode: 'auto' },
           ],
         } as unknown as MediaTrackConstraints;
-        // Make scan box adapt to viewport so users can fill it with the barcode.
+
         const qrbox = (vw: number, vh: number) => {
           const side = Math.floor(Math.min(vw, vh) * 0.8);
           return { width: side, height: Math.floor(side * 0.65) };
         };
+
         await scanner.start(
           { facingMode: 'environment' },
-          { fps: 15, qrbox, aspectRatio: 1.3333, videoConstraints },
-          (decoded) => {
+          {
+            fps: 15,
+            qrbox,
+            aspectRatio: 1.3333,
+            videoConstraints,
+            // ✅ FIX 2: تقليل الـ rememberLastUsedCamera علشان مياخدش camera قديمة
+            rememberLastUsedCamera: false,
+          },
+          (decoded, result) => {
             if (!continuous && handledSingleScanRef.current) return;
             handledSingleScanRef.current = true;
-            try { onDetectedRef.current(decoded); } catch { /* ignore */ }
+            // ✅ FIX 2: بنرجع الـ format جنب الـ value
+            const format = result?.result?.format?.formatName ?? undefined;
+            try { onDetectedRef.current(decoded, format); } catch { /* ignore */ }
             if (!continuous) window.setTimeout(() => onCloseRef.current(), 0);
           },
           () => {},
         );
+
         if (cancelled) {
           try { await scanner.stop(); } catch { /* ignore */ }
           return;
         }
-        // After the stream is live, re-apply continuous autofocus. Some Android
-        // cameras only honor the focus hint via applyConstraints post-start.
+
         try {
           await scanner.applyVideoConstraints({
             focusMode: 'continuous',
             advanced: [{ focusMode: 'continuous' }],
           } as unknown as MediaTrackConstraints);
-        } catch { /* ignore — not all cameras support it */ }
+        } catch { /* ignore */ }
+
         setTorchSupported(detectTorchSupport(scanner));
       } catch (err) {
         const msg = (err as Error)?.message ?? String(err);
@@ -152,6 +175,7 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
         if (!cancelled) setStarting(false);
       }
     };
+
     start();
 
     return () => {
@@ -159,7 +183,6 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
       const s = scannerRef.current;
       scannerRef.current = null;
       if (s) {
-        // Only stop if actively scanning to avoid html5-qrcode throwing
         const isScanning = (() => {
           try { return typeof s.getState === 'function' ? [2, 3].includes(s.getState()) : true; }
           catch { return true; }
@@ -181,7 +204,7 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
       const next = !torchOn;
       await scanner.applyVideoConstraints({ torch: next, advanced: [{ torch: next }] } as TorchConstraints);
       setTorchOn(next);
-    } catch (err) {
+    } catch {
       toast({ title: 'Torch unavailable', description: 'Flashlight is not supported by this camera/browser.' });
       setTorchOn(false);
       setTorchSupported(false);
@@ -199,7 +222,9 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
         </DialogHeader>
         <div id={containerId} className="w-full overflow-hidden rounded-md bg-black aspect-[4/3]" />
         <p className="text-xs text-muted-foreground text-center">
-          {starting ? 'Starting camera…' : continuous ? 'Point at each barcode. Tap Done when finished.' : 'Point camera at the barcode'}
+          {starting ? 'Starting camera…' : continuous
+            ? 'Point at each barcode. Tap Done when finished.'
+            : 'Point camera at the barcode'}
         </p>
         <div className="flex gap-2">
           {torchSupported && (
@@ -208,7 +233,9 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
               {torchOn ? 'Torch off' : 'Torch on'}
             </Button>
           )}
-          <Button variant="outline" onClick={onClose} className="flex-1">{continuous ? 'Done' : 'Cancel'}</Button>
+          <Button variant="outline" onClick={onClose} className="flex-1">
+            {continuous ? 'Done' : 'Cancel'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
