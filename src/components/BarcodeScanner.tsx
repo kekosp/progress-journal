@@ -133,9 +133,7 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous }: Props)
             qrbox,
             aspectRatio: 1.3333,
             videoConstraints,
-            // ✅ FIX 2: تقليل الـ rememberLastUsedCamera علشان مياخدش camera قديمة
-            rememberLastUsedCamera: false,
-          },
+          } as any,
           (decoded, result) => {
             if (!continuous && handledSingleScanRef.current) return;
             handledSingleScanRef.current = true;
