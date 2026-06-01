@@ -15,17 +15,18 @@ import { MaintenanceCalendar } from '@/components/MaintenanceCalendar';
 import { ActivityLog } from '@/components/ActivityLog';
 import { AdminGate } from '@/components/AdminGate';
 import { InventoryList } from '@/components/InventoryList';
+import { CredentialVault } from '@/components/CredentialVault';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package, CheckSquare, FileDown, FileText, FileSpreadsheet, History } from 'lucide-react';
+import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package, CheckSquare, FileDown, FileText, FileSpreadsheet, History, KeyRound } from 'lucide-react';
 import { exportBatchReportsToPdf } from '@/lib/export-pdf';
 import { exportReportsCsv, exportReportsXlsx } from '@/lib/export-csv-xlsx';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { isAuthEnabled } from '@/lib/auth';
 
 type View = 'list' | 'create' | 'edit' | 'detail';
-type Tab = 'reports' | 'analytics' | 'calendar' | 'inventory' | 'activity';
+type Tab = 'reports' | 'analytics' | 'calendar' | 'inventory' | 'vault' | 'activity';
 type SortField = 'date' | 'priority' | 'status';
 type SortDir = 'asc' | 'desc';
 
@@ -207,6 +208,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
         {tab === 'analytics' && <AnalyticsDashboard />}
         {tab === 'calendar' && <MaintenanceCalendar />}
         {tab === 'inventory' && <InventoryList />}
+        {tab === 'vault' && <CredentialVault />}
         {tab === 'activity' && <AdminGate>{({ onLogout }) => <ActivityLog onLogout={() => { onLogout(); setTab('reports'); }} />}</AdminGate>}
         {tab === 'reports' && (
           <div className="min-h-screen bg-background">
@@ -364,9 +366,10 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
             { id: 'analytics', Icon: BarChart3,      label: 'Analytics', badge: 0 },
             { id: 'calendar',  Icon: Calendar,       label: 'Calendar',  badge: upcomingCount },
             { id: 'inventory', Icon: Package,        label: 'Inventory', badge: inventoryDueCount },
+            { id: 'vault',     Icon: KeyRound,       label: 'Vault',     badge: 0 },
           ] as { id: Tab; Icon: any; label: string; badge: number }[]).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-3 relative transition-all ${tab === t.id ? 'text-primary' : 'text-muted-foreground'}`}>
+              className={`flex-1 flex flex-col items-center gap-0.5 py-3 px-1 relative transition-all ${tab === t.id ? 'text-primary' : 'text-muted-foreground'}`}>
               <div className="relative">
                 <t.Icon className={`w-5 h-5 transition-transform ${tab === t.id ? 'scale-110' : ''}`} />
                 {t.badge > 0 && (
