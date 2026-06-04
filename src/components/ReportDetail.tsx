@@ -187,7 +187,7 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
         {report.description && (
           <div>
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Description</h2>
-            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{report.description}</p>
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">{report.description}</p>
           </div>
         )}
 
