@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { setupAuth, removeAuth, verifyAuth, isAuthEnabled, AuthMethod } from '@/lib/auth';
-import { resetAllPasswords } from '@/lib/reset-passwords';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
@@ -11,11 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Lock, KeyRound, Hash, Eye, EyeOff, Trash2, CheckCircle2, Delete, AlertTriangle } from 'lucide-react';
+import { Lock, KeyRound, Hash, Eye, EyeOff, Trash2, CheckCircle2, Delete } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -40,7 +35,6 @@ export function AuthSetupModal({ open, onClose }: Props) {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [resetOpen, setResetOpen] = useState(false);
 
   function reset() {
     setStep(isAuthEnabled() ? 'confirm' : 'choose');
@@ -126,16 +120,6 @@ export function AuthSetupModal({ open, onClose }: Props) {
     toast({ title: 'Lock removed', description: 'App protection has been disabled.' });
     reset();
     onClose();
-  }
-
-  function handleFullReset() {
-    resetAllPasswords();
-    setResetOpen(false);
-    toast({
-      title: 'All passwords reset',
-      description: 'App lock, admin, and vault have been cleared.',
-    });
-    handleClose();
   }
 
   // ── Shared PIN pad ───────────────────────────────────────────────────────────
@@ -296,50 +280,7 @@ export function AuthSetupModal({ open, onClose }: Props) {
               <Button className="w-full" onClick={handleClose}>Done</Button>
             </div>
           )}
-
-          {/* ── Emergency reset (always available) ── */}
-          {step !== 'done' && (
-            <div className="pt-2 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setResetOpen(true)}
-                className="w-full text-[11px] text-muted-foreground hover:text-destructive flex items-center justify-center gap-1 py-1"
-              >
-                <AlertTriangle className="w-3 h-3" />
-                Forgot password? Reset all passwords
-              </button>
-            </div>
-          )}
         </div>
-
-        <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Reset all passwords?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently remove:
-                <span className="block mt-2">• The app lock (PIN / password)</span>
-                <span className="block">• The admin password (activity log)</span>
-                <span className="block">• The Vault and all stored credentials</span>
-                <span className="block mt-2 font-semibold text-destructive">
-                  Vault data cannot be recovered.
-                </span>
-                <span className="block mt-2">
-                  Reports, inventory, and maintenance data will be kept.
-                </span>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleFullReset}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Reset everything
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
