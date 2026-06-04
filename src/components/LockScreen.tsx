@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { verifyAuth, getAuthMethod, AuthMethod } from '@/lib/auth';
+import { resetAllPasswords } from '@/lib/reset-passwords';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Lock, Delete, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 interface Props {
@@ -40,6 +45,55 @@ export function LockScreen({ onUnlocked }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+
+  const handleReset = () => {
+    resetAllPasswords();
+    setResetOpen(false);
+    // Reload so App re-reads auth state and skips the lock screen.
+    window.location.reload();
+  };
+
+  const ResetButton = (
+    <button
+      type="button"
+      onClick={() => setResetOpen(true)}
+      className="mt-2 text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+    >
+      Forgot password? Reset all passwords
+    </button>
+  );
+
+  const ResetDialog = (
+    <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Reset all passwords?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently remove:
+            <span className="block mt-2">• The app lock (PIN / password)</span>
+            <span className="block">• The admin password (activity log)</span>
+            <span className="block">• The Vault and all stored credentials</span>
+            <span className="block mt-2 font-semibold text-destructive">
+              Vault data cannot be recovered.
+            </span>
+            <span className="block mt-2">
+              Reports, inventory, and maintenance data will be kept.
+            </span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleReset}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Reset everything
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 
   const stored = getLockoutState();
   const [attempts, setAttempts] = useState(stored.attempts);
@@ -180,6 +234,8 @@ export function LockScreen({ onUnlocked }: Props) {
             <Delete className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
+        {ResetButton}
+        {ResetDialog}
       </div>
     );
   }
@@ -230,6 +286,8 @@ export function LockScreen({ onUnlocked }: Props) {
         >
           {checking ? 'Checking…' : 'Unlock'}
         </Button>
+        {ResetButton}
+        {ResetDialog}
       </div>
     </div>
   );
