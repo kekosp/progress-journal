@@ -114,7 +114,7 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
             </div>
           </div>
 
-          <h1 className="text-lg font-bold leading-tight mb-2 break-words">{report.title}</h1>
+          <h1 className="text-lg font-bold leading-tight mb-2 break-all">{report.title}</h1>
 
           <div className="flex flex-wrap gap-1.5">
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${priorityColors[report.priority]}`}>
@@ -187,7 +187,7 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
         {report.description && (
           <div>
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Description</h2>
-            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">{report.description}</p>
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-all">{report.description}</p>
           </div>
         )}
 
@@ -246,7 +246,7 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
         {report.notes && (
           <div>
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Notes</h2>
-            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">{report.notes}</p>
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-all">{report.notes}</p>
           </div>
         )}
 

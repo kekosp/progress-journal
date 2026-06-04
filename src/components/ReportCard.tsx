@@ -22,9 +22,9 @@ export function ReportCard({ report, onClick }: ReportCardProps) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-sm truncate text-foreground">{report.title}</h3>
+            <h3 className="font-semibold text-sm truncate text-foreground break-all">{report.title}</h3>
           </div>
-          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+          <p className="text-xs text-muted-foreground mb-2 line-clamp-2 break-all">
             {report.description || 'No description'}
           </p>
           <div className="flex items-center gap-2 flex-wrap">
