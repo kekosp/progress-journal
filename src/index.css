@@ -6,30 +6,31 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 222 47% 11%;
+    /* Noir & Gold — Light variant (paper) */
+    --background: 40 20% 96%;
+    --foreground: 0 0% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 222 60% 22%;
-    --primary-foreground: 45 100% 96%;
-    --secondary: 220 16% 92%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 220 16% 94%;
-    --muted-foreground: 220 10% 46%;
-    --accent: 38 92% 50%;
-    --accent-foreground: 222 60% 12%;
+    --popover-foreground: 0 0% 8%;
+    --primary: 43 53% 45%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 40 15% 92%;
+    --secondary-foreground: 0 0% 8%;
+    --muted: 40 15% 92%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 43 75% 55%;
+    --accent-foreground: 0 0% 8%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 16% 88%;
-    --input: 220 16% 88%;
-    --ring: 38 92% 50%;
-    --radius: 0.75rem;
+    --border: 40 15% 86%;
+    --input: 40 15% 86%;
+    --ring: 43 53% 54%;
+    --radius: 1rem;
     --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 222 60% 12%;
+    --warning: 43 75% 55%;
+    --warning-foreground: 0 0% 8%;
     --info: 210 80% 52%;
     --info-foreground: 0 0% 100%;
     --sidebar-background: 0 0% 98%;
@@ -43,25 +44,26 @@
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 96%;
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 96%;
-    --popover: 222 47% 9%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 213 93% 68%;
-    --primary-foreground: 222 60% 8%;
-    --secondary: 222 30% 16%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 222 30% 14%;
-    --muted-foreground: 220 10% 56%;
-    --accent: 213 93% 68%;
-    --accent-foreground: 222 60% 8%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 222 30% 18%;
-    --input: 222 30% 18%;
-    --ring: 213 93% 68%;
+    /* Noir & Gold — Dark (primary aesthetic) */
+    --background: 0 0% 5%;
+    --foreground: 43 75% 75%;
+    --card: 0 0% 10%;
+    --card-foreground: 43 75% 80%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 43 75% 80%;
+    --primary: 43 53% 54%;
+    --primary-foreground: 0 0% 5%;
+    --secondary: 0 0% 13%;
+    --secondary-foreground: 43 75% 80%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 43 20% 60%;
+    --accent: 43 75% 75%;
+    --accent-foreground: 0 0% 5%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 43 30% 20%;
+    --input: 0 0% 14%;
+    --ring: 43 53% 54%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
