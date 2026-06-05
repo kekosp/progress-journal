@@ -212,27 +212,27 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
         {tab === 'activity' && <AdminGate>{({ onLogout }) => <ActivityLog onLogout={() => { onLogout(); setTab('reports'); }} />}</AdminGate>}
         {tab === 'reports' && (
           <div className="min-h-screen bg-background">
-            <div className="bg-primary text-primary-foreground px-4 pt-12 pb-6">
+            <div className="bg-card text-foreground px-4 pt-12 pb-6 border-b border-border">
               <div className="max-w-lg mx-auto">
                 <div className="flex items-center justify-between mb-4">
-                  <h1 className="text-lg font-bold tracking-tight select-none" onClick={handleSecretTap}>Reports</h1>
+                  <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground select-none" onClick={handleSecretTap}>Reports</h1>
                   <div className="flex items-center gap-1.5">
                     {reports.length > 0 && (
                       <Button size="sm" variant="ghost" onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()); }}
-                        className={`text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0 ${selectMode ? 'bg-primary-foreground/20' : ''}`} title="Select reports">
+                        className={`text-foreground hover:bg-muted h-8 w-8 p-0 ${selectMode ? 'bg-muted' : ''}`} title="Select reports">
                         <CheckSquare className="w-4 h-4" />
                       </Button>
                     )}
                     {isAuthEnabled() && onLock && (
-                      <Button size="sm" variant="ghost" onClick={onLock} className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0" title="Lock app">
+                      <Button size="sm" variant="ghost" onClick={onLock} className="text-foreground hover:bg-muted h-8 w-8 p-0" title="Lock app">
                         <Lock className="w-4 h-4" />
                       </Button>
                     )}
-                    <Button size="sm" variant="ghost" onClick={() => setShowAuth(true)} className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0"><Shield className="w-4 h-4" /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => setShowTransfer(true)} className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0"><ArrowLeftRight className="w-4 h-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => setShowAuth(true)} className="text-foreground hover:bg-muted h-8 w-8 p-0"><Shield className="w-4 h-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => setShowTransfer(true)} className="text-foreground hover:bg-muted h-8 w-8 p-0"><ArrowLeftRight className="w-4 h-4" /></Button>
                     <ThemeToggle />
-                    <Button size="sm" onClick={() => setView('create')} className="bg-accent text-accent-foreground hover:bg-accent/90 gap-1.5 shadow-lg">
-                      <Plus className="w-4 h-4" /> New
+                    <Button size="sm" onClick={() => setView('create')} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1 rounded-full px-4 font-display font-bold tracking-wide shadow-[0_0_20px_hsl(var(--primary)/0.25)]">
+                      <Plus className="w-4 h-4" /> NEW
                     </Button>
                   </div>
                 </div>
@@ -244,10 +244,10 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                     }}>
                       {selectedIds.size === filtered.length ? 'Deselect All' : 'Select All'}
                     </Button>
-                    <span className="text-xs text-primary-foreground/70">{selectedIds.size} selected</span>
+                    <span className="text-xs text-muted-foreground">{selectedIds.size} selected</span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="sm" className="ml-auto bg-accent text-accent-foreground hover:bg-accent/90 gap-1 text-xs h-7"
+                        <Button size="sm" className="ml-auto bg-primary text-primary-foreground hover:bg-primary/90 gap-1 text-xs h-7"
                           disabled={selectedIds.size === 0 || batchExporting}>
                           <FileDown className="w-3.5 h-3.5" />
                           {batchExporting ? 'Exporting…' : 'Export'}
@@ -267,25 +267,41 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                     </DropdownMenu>
                   </div>
                 )}
-                <div className="grid grid-cols-4 gap-2">
-                  {[{ label: 'Total', value: stats.total }, { label: 'Done', value: stats.completed }, { label: 'Active', value: stats.inProgress }, { label: 'Critical', value: stats.critical }].map(s => (
-                    <div key={s.label} className="bg-primary-foreground/10 rounded-lg p-2 text-center backdrop-blur-sm">
-                      <div className="text-lg font-bold">{s.value}</div>
-                      <div className="text-[10px] opacity-70">{s.label}</div>
+                {/* Bento Grid Stats — Noir editorial layout */}
+                <div className="grid grid-cols-4 grid-rows-2 gap-2 h-44">
+                  <div className="col-span-2 row-span-2 bg-muted rounded-2xl p-4 border border-border flex flex-col justify-between">
+                    <span className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-medium">Total Reports</span>
+                    <div className="flex items-end gap-1">
+                      <span className="font-display text-5xl font-extrabold text-foreground leading-none">{stats.total}</span>
                     </div>
-                  ))}
+                  </div>
+                  <div className="col-span-2 bg-muted rounded-2xl p-3 border border-border flex justify-between items-center">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-medium">Active</span>
+                      <span className="font-display text-xl font-bold text-foreground">{stats.inProgress}</span>
+                    </div>
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
+                  </div>
+                  <div className="col-span-1 bg-muted rounded-2xl p-2 border border-destructive/30 flex flex-col justify-center items-center">
+                    <span className="font-display text-lg font-bold text-destructive">{String(stats.critical).padStart(2, '0')}</span>
+                    <span className="text-[8px] uppercase tracking-tight text-muted-foreground">Critical</span>
+                  </div>
+                  <div className="col-span-1 bg-muted rounded-2xl p-2 border border-border flex flex-col justify-center items-center">
+                    <span className="font-display text-lg font-bold text-foreground">{String(stats.completed).padStart(2, '0')}</span>
+                    <span className="text-[8px] uppercase tracking-tight text-muted-foreground">Done</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="px-4 -mt-3 max-w-lg mx-auto">
-              <div className="bg-card rounded-xl shadow-sm border border-border p-3 space-y-2">
+            <div className="px-4 pt-4 max-w-lg mx-auto">
+              <div className="bg-card rounded-2xl border border-border p-3 space-y-2">
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search reports..." className="pl-9 bg-background border-border text-sm h-9" />
+                    <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search archives..." className="pl-9 bg-muted border-border text-sm h-9 rounded-xl" />
                   </div>
-                  <Button variant={showFilters ? 'default' : 'outline'} size="sm" onClick={() => setShowFilters(!showFilters)} className="h-9 w-9 p-0"><Filter className="w-4 h-4" /></Button>
+                  <Button variant={showFilters ? 'default' : 'outline'} size="sm" onClick={() => setShowFilters(!showFilters)} className="h-9 w-9 p-0 rounded-xl"><Filter className="w-4 h-4" /></Button>
                 </div>
                 {showFilters && (
                   <div className="space-y-2">
@@ -326,6 +342,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
             </div>
 
             <div className="px-4 py-4 max-w-lg mx-auto space-y-2">
+              <div className="font-sans text-[10px] tracking-[0.3em] uppercase text-primary font-medium mb-1 px-1">Recent Intelligence</div>
               {filtered.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4"><ClipboardList className="w-8 h-8 text-muted-foreground" /></div>
