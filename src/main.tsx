@@ -3,12 +3,16 @@ import App from "./App.tsx";
 import "./index.css";
 
 // Bundled fonts — no CDN required, works fully offline on Android
-import "@fontsource/inter/300.css";
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/500.css";
-import "@fontsource/inter/600.css";
-import "@fontsource/inter/700.css";
-import "@fontsource/inter/800.css";
+// Urbanist (display/headings) + Epilogue (body) — Noir & Gold design system
+import "@fontsource/urbanist/300.css";
+import "@fontsource/urbanist/500.css";
+import "@fontsource/urbanist/600.css";
+import "@fontsource/urbanist/700.css";
+import "@fontsource/urbanist/800.css";
+import "@fontsource/epilogue/300.css";
+import "@fontsource/epilogue/400.css";
+import "@fontsource/epilogue/500.css";
+import "@fontsource/epilogue/600.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/500.css";
 
