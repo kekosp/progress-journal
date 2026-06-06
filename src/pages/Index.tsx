@@ -207,13 +207,13 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
       <AuthSetupModal open={showAuth} onClose={() => setShowAuth(false)} />
 
       <div className="pb-16">
-        {tab === 'analytics' && <AnalyticsDashboard />}
-        {tab === 'calendar' && <MaintenanceCalendar />}
-        {tab === 'inventory' && <InventoryList />}
-        {tab === 'vault' && <CredentialVault />}
-        {tab === 'activity' && <AdminGate>{({ onLogout }) => <ActivityLog onLogout={() => { onLogout(); setTab('reports'); }} />}</AdminGate>}
+        {tab === 'analytics' && <div key="analytics" className="animate-fade-in"><AnalyticsDashboard /></div>}
+        {tab === 'calendar' && <div key="calendar" className="animate-fade-in"><MaintenanceCalendar /></div>}
+        {tab === 'inventory' && <div key="inventory" className="animate-fade-in"><InventoryList /></div>}
+        {tab === 'vault' && <div key="vault" className="animate-fade-in"><CredentialVault /></div>}
+        {tab === 'activity' && <div key="activity" className="animate-fade-in"><AdminGate>{({ onLogout }) => <ActivityLog onLogout={() => { onLogout(); setTab('reports'); }} />}</AdminGate></div>}
         {tab === 'reports' && (
-          <div className="min-h-screen bg-background">
+          <div key="reports" className="min-h-screen bg-background animate-fade-in">
             <div className="bg-card text-foreground px-4 pt-12 pb-6 border-b border-border">
               <div className="max-w-lg mx-auto">
                 <div className="flex items-center justify-between mb-4">
