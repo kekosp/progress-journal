@@ -191,12 +191,14 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
     critical: reports.filter(r => r.priority === 'critical').length,
   }), [reports]);
 
-  if (view === 'create') return <ReportForm onBack={() => setView('list')} onSaved={() => { refresh(); setView('list'); }} />;
-  if (view === 'edit' && editingReport) return <ReportForm report={editingReport} onBack={() => setView('list')} onSaved={() => { refresh(); setView('list'); }} />;
+  if (view === 'create') return <div key="create" className="min-h-screen animate-fade-in"><ReportForm onBack={() => setView('list')} onSaved={() => { refresh(); setView('list'); }} /></div>;
+  if (view === 'edit' && editingReport) return <div key="edit" className="min-h-screen animate-fade-in"><ReportForm report={editingReport} onBack={() => setView('list')} onSaved={() => { refresh(); setView('list'); }} /></div>;
   if (view === 'detail' && viewingReport) return (
-    <ReportDetail report={viewingReport} onBack={() => setView('list')}
-      onEdit={(id) => { const r = getReportById(id); if (r) { setEditingReport(r); setView('edit'); } }}
-      onDeleted={() => { refresh(); setView('list'); }} />
+    <div key="detail" className="min-h-screen animate-fade-in">
+      <ReportDetail report={viewingReport} onBack={() => setView('list')}
+        onEdit={(id) => { const r = getReportById(id); if (r) { setEditingReport(r); setView('edit'); } }}
+        onDeleted={() => { refresh(); setView('list'); }} />
+    </div>
   );
 
   return (
