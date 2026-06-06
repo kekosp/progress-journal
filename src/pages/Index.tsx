@@ -191,12 +191,14 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
     critical: reports.filter(r => r.priority === 'critical').length,
   }), [reports]);
 
-  if (view === 'create') return <ReportForm onBack={() => setView('list')} onSaved={() => { refresh(); setView('list'); }} />;
-  if (view === 'edit' && editingReport) return <ReportForm report={editingReport} onBack={() => setView('list')} onSaved={() => { refresh(); setView('list'); }} />;
+  if (view === 'create') return <div key="create" className="min-h-screen animate-fade-in"><ReportForm onBack={() => setView('list')} onSaved={() => { refresh(); setView('list'); }} /></div>;
+  if (view === 'edit' && editingReport) return <div key="edit" className="min-h-screen animate-fade-in"><ReportForm report={editingReport} onBack={() => setView('list')} onSaved={() => { refresh(); setView('list'); }} /></div>;
   if (view === 'detail' && viewingReport) return (
-    <ReportDetail report={viewingReport} onBack={() => setView('list')}
-      onEdit={(id) => { const r = getReportById(id); if (r) { setEditingReport(r); setView('edit'); } }}
-      onDeleted={() => { refresh(); setView('list'); }} />
+    <div key="detail" className="min-h-screen animate-fade-in">
+      <ReportDetail report={viewingReport} onBack={() => setView('list')}
+        onEdit={(id) => { const r = getReportById(id); if (r) { setEditingReport(r); setView('edit'); } }}
+        onDeleted={() => { refresh(); setView('list'); }} />
+    </div>
   );
 
   return (
@@ -205,13 +207,13 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
       <AuthSetupModal open={showAuth} onClose={() => setShowAuth(false)} />
 
       <div className="pb-16">
-        {tab === 'analytics' && <AnalyticsDashboard />}
-        {tab === 'calendar' && <MaintenanceCalendar />}
-        {tab === 'inventory' && <InventoryList />}
-        {tab === 'vault' && <CredentialVault />}
-        {tab === 'activity' && <AdminGate>{({ onLogout }) => <ActivityLog onLogout={() => { onLogout(); setTab('reports'); }} />}</AdminGate>}
+        {tab === 'analytics' && <div key="analytics" className="animate-fade-in"><AnalyticsDashboard /></div>}
+        {tab === 'calendar' && <div key="calendar" className="animate-fade-in"><MaintenanceCalendar /></div>}
+        {tab === 'inventory' && <div key="inventory" className="animate-fade-in"><InventoryList /></div>}
+        {tab === 'vault' && <div key="vault" className="animate-fade-in"><CredentialVault /></div>}
+        {tab === 'activity' && <div key="activity" className="animate-fade-in"><AdminGate>{({ onLogout }) => <ActivityLog onLogout={() => { onLogout(); setTab('reports'); }} />}</AdminGate></div>}
         {tab === 'reports' && (
-          <div className="min-h-screen bg-background">
+          <div key="reports" className="min-h-screen bg-background animate-fade-in">
             <div className="bg-card text-foreground px-4 pt-12 pb-6 border-b border-border">
               <div className="max-w-lg mx-auto">
                 <div className="flex items-center justify-between mb-4">
