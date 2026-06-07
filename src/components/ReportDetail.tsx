@@ -55,7 +55,13 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
     setExporting(true);
     try {
       const result = await exportReportToPdf(report);
-      toast.success(result.saved ? `Saved to ${result.path}` : 'PDF downloaded');
+      if (result.saved && (result as any).shared) {
+        toast.success('PDF ready — choose where to save it');
+      } else if (result.saved) {
+        toast.success(`PDF saved: ${result.path}`);
+      } else {
+        toast.success(`PDF downloaded: ${result.path}`);
+      }
     } catch {
       toast.error('Export failed');
     } finally {
