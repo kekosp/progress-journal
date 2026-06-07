@@ -2,7 +2,49 @@ import jsPDF from 'jspdf';
 import { Report, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '@/types/report';
 import { format } from 'date-fns';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 import { registerArabicFonts, hasArabic, getFontName } from './pdf-arabic';
+
+/**
+ * Save a generated PDF in a way the user can actually find it:
+ * - On the web (preview / browser): trigger a normal browser download via jsPDF.
+ * - On native (Android): write to app storage and open the system Share sheet
+ *   so the user can save it to Downloads, send via WhatsApp/Email, etc.
+ */
+async function savePdf(doc: jsPDF, filename: string): Promise<{ saved: boolean; path: string; shared?: boolean }> {
+  // Web / preview → browser download
+  if (!Capacitor.isNativePlatform()) {
+    doc.save(filename);
+    return { saved: false, path: filename };
+  }
+
+  // Native (Android) → write file then share
+  try {
+    const base64 = doc.output('datauristring').split(',')[1];
+    const written = await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Cache,
+      recursive: true,
+    });
+    try {
+      await Share.share({
+        title: filename,
+        url: written.uri,
+        dialogTitle: 'Save or share PDF',
+      });
+      return { saved: true, path: filename, shared: true };
+    } catch {
+      // User cancelled share — file still exists in cache
+      return { saved: true, path: filename, shared: false };
+    }
+  } catch {
+    // Last-resort fallback
+    doc.save(filename);
+    return { saved: false, path: filename };
+  }
+}
 
 type RGB = [number, number, number];
 
@@ -481,14 +523,7 @@ export async function exportReportToPdf(report: Report) {
   // ═══════════════════════════════════════════════════════════════════════════
   const filename = 'Report_' + report.title.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '_').slice(0, 30) + '_' + format(new Date(report.createdAt), 'yyyyMMdd') + '.pdf';
 
-  try {
-    const base64 = doc.output('datauristring').split(',')[1];
-    await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Data, recursive: true });
-    return { saved: true, path: filename };
-  } catch {
-    doc.save(filename);
-    return { saved: false, path: filename };
-  }
+  return savePdf(doc, filename);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -812,12 +847,5 @@ export async function exportBatchReportsToPdf(reports: Report[]) {
   // ── SAVE ──
   const filename = `Batch_Report_${reports.length}_reports_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
 
-  try {
-    const base64 = doc.output('datauristring').split(',')[1];
-    await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Data, recursive: true });
-    return { saved: true, path: filename };
-  } catch {
-    doc.save(filename);
-    return { saved: false, path: filename };
-  }
+  return savePdf(doc, filename);
 }
