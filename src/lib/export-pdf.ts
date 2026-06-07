@@ -126,90 +126,91 @@ export async function exportReportToPdf(report: Report) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const PW = doc.internal.pageSize.getWidth();
   const PH = doc.internal.pageSize.getHeight();
-  const M = 16;
+  const M = 18;
   const CW = PW - M * 2;
   const RX = PW - M; // right edge x for RTL alignment
   let y = M;
-  const tocEntries: { title: string; page: number; num: string }[] = [];
   let sectionNum = 0;
 
-  // Register Arabic fonts
   await registerArabicFonts(doc);
-
-  // Detect if report content is primarily Arabic
   const isRTL = hasArabic(report.title) || hasArabic(report.description);
 
+  // ── Footer ──────────────────────────────────────────────────────────────
   const drawFooter = (pg: number, total: number) => {
-    setDrw(doc, C.muted); doc.line(M, PH - 12, PW - M, PH - 12);
-    doc.setFontSize(7); setTxt(doc, C.light);
-    setFont(doc, 'normal', report.title);
-    drawText(doc, report.title, M, PH - 7, { maxWidth: CW * 0.6, rtlX: RX });
-    doc.setFont('helvetica', 'normal');
-    doc.text('Page ' + pg + ' of ' + total, isRTL ? M : RX, PH - 7, { align: isRTL ? 'left' : 'right' });
+    setDrw(doc, C.muted); doc.setLineWidth(0.2);
+    doc.line(M, PH - 13, PW - M, PH - 13);
+    doc.setFontSize(7.5); setTxt(doc, C.mid); doc.setFont('helvetica', 'normal');
+    // Left: app/report label (LTR side)
+    const leftLabel = report.title.length > 50 ? report.title.slice(0, 50) + '…' : report.title;
+    setFont(doc, 'normal', leftLabel);
+    drawText(doc, leftLabel, M, PH - 7, { maxWidth: CW * 0.65, rtlX: RX });
+    // Right: page indicator
+    doc.setFont('helvetica', 'normal'); setTxt(doc, C.mid);
+    doc.text(`Page ${pg} of ${total}`, isRTL ? M : RX, PH - 7, { align: isRTL ? 'left' : 'right' });
   };
 
+  // ── Page-break helper ───────────────────────────────────────────────────
   const check = (needed: number) => {
-    if (y + needed > PH - M - 14) { doc.addPage(); y = M; }
+    if (y + needed > PH - M - 16) { doc.addPage(); y = M + 4; }
   };
 
+  // ── Numbered section header ─────────────────────────────────────────────
   const section = (title: string) => {
-    check(18);
+    check(20);
+    if (y > M + 4) y += 4; // breathing room above
     sectionNum++;
-    const num = String(sectionNum);
-    tocEntries.push({ title, page: doc.getNumberOfPages(), num });
+    const num = String(sectionNum).padStart(2, '0');
 
     if (isRTL) {
-      // RTL: circle on right side
+      // Number chip (right)
       setFill(doc, C.navy);
-      doc.circle(RX - 4, y + 4, 4, 'F');
+      doc.roundedRect(RX - 11, y, 11, 7, 1.5, 1.5, 'F');
       doc.setFontSize(8); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
-      doc.text(num, RX - 4, y + 5.5, { align: 'center' });
-
+      doc.text(num, RX - 5.5, y + 5, { align: 'center' });
+      // Title
       doc.setFontSize(13); setFont(doc, 'bold', title); setTxt(doc, C.navy);
-      doc.text(title, RX - 12, y + 6, { align: 'right' });
-      setFill(doc, C.accent); doc.rect(RX - 32, y + 8, 20, 0.8, 'F');
+      doc.text(title, RX - 14, y + 5.5, { align: 'right' });
     } else {
+      // Number chip (left)
       setFill(doc, C.navy);
-      doc.circle(M + 4, y + 4, 4, 'F');
+      doc.roundedRect(M, y, 11, 7, 1.5, 1.5, 'F');
       doc.setFontSize(8); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
-      doc.text(num, M + 4, y + 5.5, { align: 'center' });
-
+      doc.text(num, M + 5.5, y + 5, { align: 'center' });
+      // Title
       doc.setFontSize(13); setFont(doc, 'bold', title); setTxt(doc, C.navy);
-      doc.text(title, M + 12, y + 6);
-      setFill(doc, C.accent); doc.rect(M + 12, y + 8, 20, 0.8, 'F');
+      doc.text(title, M + 14, y + 5.5);
     }
-    y += 16;
+    // Thin full-width underline
+    y += 9;
+    setDrw(doc, C.muted); doc.setLineWidth(0.3);
+    doc.line(M, y, PW - M, y);
+    y += 7;
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // COVER PAGE
+  // COVER PAGE  (clean, single-page summary)
   // ═══════════════════════════════════════════════════════════════════════════
-  setFill(doc, C.navy); doc.rect(0, 0, PW, PH, 'F');
-  setFill(doc, C.accent); doc.rect(0, 0, PW, 4, 'F');
+  // Top navy band (compact header, rest of page stays white & readable)
+  const bandH = 70;
+  setFill(doc, C.navy); doc.rect(0, 0, PW, bandH, 'F');
+  setFill(doc, C.accent); doc.rect(0, bandH, PW, 1.5, 'F');
 
   // Category label
   const catLabel = CATEGORY_LABELS[report.category].toUpperCase();
-  doc.setFontSize(9); setFont(doc, 'bold', catLabel); setTxt(doc, C.accent);
-  drawText(doc, catLabel, M, 34, { rtlX: RX });
-
-  // Decorative line
-  if (isRTL) {
-    setFill(doc, C.accent); doc.rect(RX - 30, 37, 30, 0.6, 'F');
-  } else {
-    setFill(doc, C.accent); doc.rect(M, 37, 30, 0.6, 'F');
-  }
+  doc.setFontSize(8.5); setFont(doc, 'bold', catLabel); setTxt(doc, C.accent);
+  drawText(doc, catLabel, M, 22, { rtlX: RX });
 
   // Title
-  doc.setFontSize(28); setFont(doc, 'bold', report.title); setTxt(doc, C.white);
-  const titleLines: string[] = doc.splitTextToSize(report.title, CW - 10);
-  let cy = 52;
-  titleLines.forEach((l: string) => {
+  doc.setFontSize(22); setFont(doc, 'bold', report.title); setTxt(doc, C.white);
+  const titleLines: string[] = doc.splitTextToSize(report.title, CW);
+  let cy = 34;
+  titleLines.slice(0, 2).forEach((l: string) => {
     drawText(doc, l, M, cy, { rtlX: RX });
-    cy += 12;
+    cy += 9;
   });
 
-  // Pills row
-  cy += 4;
+  // Pills row (inside the navy band)
+  const pillsY = bandH - 12;
   let cx = isRTL ? RX : M;
   const chips: [string, RGB][] = [
     [PRIORITY_LABELS[report.priority], PRIORITY_COLOR[report.priority]],
@@ -221,74 +222,75 @@ export async function exportReportToPdf(report: Report) {
   }
   doc.setFontSize(7.5);
   if (isRTL) {
-    // Render pills from right to left
     chips.forEach(([label, color]) => {
       setFont(doc, 'bold', label);
       const w = doc.getTextWidth(label) + 8;
       cx -= w;
       setFill(doc, color);
-      doc.roundedRect(cx, cy - 5, w, 7.5, 2, 2, 'F');
+      doc.roundedRect(cx, pillsY - 5, w, 7.5, 2, 2, 'F');
       setTxt(doc, C.white);
       doc.setFontSize(7.5); setFont(doc, 'bold', label);
-      doc.text(label, cx + 4, cy);
+      doc.text(label, cx + 4, pillsY);
       cx -= 3;
     });
   } else {
-    chips.forEach(([label, color]) => { cx += pill(doc, label, cx, cy, color); });
+    chips.forEach(([label, color]) => { cx += pill(doc, label, cx, pillsY, color); });
   }
 
-  // Horizontal divider
-  const divY = PH * 0.52;
-  setFill(doc, C.accent); doc.rect(M, divY, CW, 0.5, 'F');
+  // ─── REPORT SUMMARY CARD (on white) ──────────────────────────────────────
+  doc.setFontSize(9); setFont(doc, 'bold'); setTxt(doc, C.navy);
+  drawText(doc, isRTL ? 'ملخص التقرير' : 'REPORT SUMMARY', M, bandH + 12, { rtlX: RX });
+  setFill(doc, C.accent); doc.rect(isRTL ? RX - 18 : M, bandH + 14, 18, 0.6, 'F');
 
-  // Info card
-  const cardY = divY + 10;
-  setFill(doc, [25, 36, 60]);
-  doc.roundedRect(M, cardY, CW, 60, 3, 3, 'F');
-
+  const summaryY = bandH + 22;
   const infoRows: [string, string][] = [
-    ['Date', format(new Date(report.createdAt), 'MMMM d, yyyy')],
+    ['Date', format(new Date(report.createdAt), 'MMM d, yyyy')],
     ['Time', format(new Date(report.createdAt), 'HH:mm')],
+    ['Category', CATEGORY_LABELS[report.category]],
+    ['Priority', PRIORITY_LABELS[report.priority]],
+    ['Status', STATUS_LABELS[report.status]],
     ...(report.projectName ? [['Project', report.projectName] as [string, string]] : []),
     ...(report.location ? [['Location', report.location] as [string, string]] : []),
     ...(totalLostTime > 0 ? [['Lost Time', fmtHours(report.lostTimeHours ?? 0, report.lostTimeMinutes)] as [string, string]] : []),
     ...(report.signedBy ? [['Signed by', report.signedBy] as [string, string]] : []),
+    ['Attachments', `${report.images.length} ${report.images.length === 1 ? 'photo' : 'photos'}`],
   ];
-  
-  infoRows.forEach(([label, value], i) => {
-    const rowY = cardY + 10 + i * 8;
+
+  // Two-column key/value grid
+  const rowH = 9;
+  const colW = CW / 2;
+  infoRows.forEach((row, i) => {
+    const col = i % 2;
+    const rowIdx = Math.floor(i / 2);
+    const rx = isRTL ? RX - (col === 0 ? 0 : colW) : M + col * colW;
+    const ry = summaryY + rowIdx * rowH;
+    // Zebra stripe per row
+    if (col === 0 && rowIdx % 2 === 0) {
+      setFill(doc, C.bg); doc.rect(M, ry - 5, CW, rowH, 'F');
+    }
+    const [label, value] = row;
     if (isRTL) {
-      doc.setFontSize(7.5); setTxt(doc, C.accent); doc.setFont('helvetica', 'normal');
-      doc.text(label.toUpperCase(), RX - 8, rowY, { align: 'right' });
-      doc.setFontSize(10); setTxt(doc, C.white); setFont(doc, 'normal', value);
-      doc.text(value, RX - 38, rowY, { align: 'right' });
+      doc.setFontSize(7); setTxt(doc, C.mid); doc.setFont('helvetica', 'normal');
+      doc.text(label.toUpperCase(), rx - 3, ry, { align: 'right' });
+      doc.setFontSize(9.5); setTxt(doc, C.dark); setFont(doc, 'bold', value);
+      doc.text(value, rx - 28, ry, { align: 'right', maxWidth: colW - 32 });
     } else {
-      doc.setFontSize(7.5); setTxt(doc, C.accent); doc.setFont('helvetica', 'normal');
-      doc.text(label.toUpperCase(), M + 8, rowY);
-      doc.setFontSize(10); setTxt(doc, C.white); setFont(doc, 'normal', value);
-      doc.text(value, M + 38, rowY);
+      doc.setFontSize(7); setTxt(doc, C.mid); doc.setFont('helvetica', 'normal');
+      doc.text(label.toUpperCase(), rx + 3, ry);
+      doc.setFontSize(9.5); setTxt(doc, C.dark); setFont(doc, 'bold', value);
+      doc.text(value, rx + 28, ry, { maxWidth: colW - 32 });
     }
   });
 
-  // Image count & report ID at bottom
-  if (report.images.length > 0) {
-    doc.setFontSize(8); setTxt(doc, C.accent);
-    doc.text(report.images.length + ' image' + (report.images.length !== 1 ? 's' : '') + ' attached', PW - M, PH - 20, { align: 'right' });
-  }
+  // Cover footer
   doc.setFontSize(6.5); setTxt(doc, C.light); doc.setFont('helvetica', 'normal');
-  doc.text('ID: ' + report.id, M, PH - 12);
-  doc.text('Generated ' + format(new Date(), 'yyyy-MM-dd HH:mm'), PW - M, PH - 12, { align: 'right' });
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // TOC PAGE
-  // ═══════════════════════════════════════════════════════════════════════════
-  doc.addPage();
-  const tocPage = doc.getNumberOfPages();
+  doc.text('ID: ' + report.id, M, PH - 10);
+  doc.text('Generated ' + format(new Date(), 'yyyy-MM-dd HH:mm'), PW - M, PH - 10, { align: 'right' });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CONTENT PAGES
   // ═══════════════════════════════════════════════════════════════════════════
-  doc.addPage(); y = M;
+  doc.addPage(); y = M + 4;
 
   // — Description —
   if (report.description) {
@@ -298,9 +300,9 @@ export async function exportReportToPdf(report: Report) {
     lines.forEach((l: string) => {
       check(6);
       drawText(doc, l, M, y, { rtlX: RX });
-      y += 5.5;
+      y += 5.8;
     });
-    y += 8;
+    y += 4;
   }
 
   // — Lost Time —
@@ -323,7 +325,7 @@ export async function exportReportToPdf(report: Report) {
       doc.setFontSize(9); doc.setFont('helvetica', 'normal'); setTxt(doc, C.mid);
       doc.text('Recorded downtime / delay for this incident', M + 10, y + 18);
     }
-    y += 30;
+    y += 28;
   }
 
   // — Attachments —
@@ -347,66 +349,79 @@ export async function exportReportToPdf(report: Report) {
         const img = report.images[i];
         const src = img.annotatedDataUrl || img.dataUrl;
         const aspect = aspects[i];
-        const imgH = Math.min((colW * aspect.h) / aspect.w, 65);
-        const cellH = imgH + (img.caption ? 10 : 4);
+        const imgH = Math.min((colW * aspect.h) / aspect.w, 70);
+        const cellH = imgH + (img.caption ? 12 : 6);
 
         if (col === 0) { check(cellH + 4); rowStartY = y; maxRowH = 0; }
         const xPos = colPositions[col];
 
         try {
           doc.addImage(src, 'JPEG', xPos, y, colW, imgH);
+          // Thin border for crisp framing
+          setDrw(doc, C.muted); doc.setLineWidth(0.2);
+          doc.rect(xPos, y, colW, imgH);
+          // Photo number badge (top-left)
+          setFill(doc, C.navy);
+          doc.roundedRect(xPos + 2, y + 2, 7, 5, 1, 1, 'F');
+          doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+          doc.text(String(i + 1), xPos + 5.5, y + 5.7, { align: 'center' });
+          // Annotated tag (top-right)
           if (img.annotatedDataUrl) {
             setFill(doc, C.accent);
-            doc.roundedRect(xPos + 1.5, y + 1.5, 18, 5.5, 1.5, 1.5, 'F');
+            doc.roundedRect(xPos + colW - 19, y + 2, 17, 5, 1, 1, 'F');
             doc.setFontSize(5.5); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
-            doc.text('ANNOTATED', xPos + 3, y + 5);
+            doc.text('ANNOTATED', xPos + colW - 10.5, y + 5.7, { align: 'center' });
           }
         } catch { /* skip */ }
 
         if (img.caption) {
-          doc.setFontSize(7); setFont(doc, 'normal', img.caption); setTxt(doc, C.mid);
+          doc.setFontSize(7.5); setFont(doc, 'normal', img.caption); setTxt(doc, C.dark);
           const captionLines: string[] = doc.splitTextToSize(img.caption, colW - 2);
           captionLines.slice(0, 2).forEach((cl: string, ci: number) => {
             if (isRTL) {
-              doc.text(cl, xPos + colW - 1, y + imgH + 4 + ci * 3.5, { align: 'right' });
+              doc.text(cl, xPos + colW - 1, y + imgH + 5 + ci * 3.8, { align: 'right' });
             } else {
-              doc.text(cl, xPos + 1, y + imgH + 4 + ci * 3.5);
+              doc.text(cl, xPos + 1, y + imgH + 5 + ci * 3.8);
             }
           });
         }
 
-        doc.setFontSize(6); setTxt(doc, C.light); doc.setFont('helvetica', 'normal');
-        doc.text(String(i + 1), isRTL ? xPos + 1 : xPos + colW - 1, y + imgH + 4, { align: isRTL ? 'left' : 'right' });
-
         maxRowH = Math.max(maxRowH, cellH);
         col++;
-        if (col >= 2 || i === report.images.length - 1) { y = rowStartY + maxRowH + 6; col = 0; }
+        if (col >= 2 || i === report.images.length - 1) { y = rowStartY + maxRowH + 5; col = 0; }
       }
     } else {
       for (let i = 0; i < report.images.length; i++) {
         const img = report.images[i];
         const src = img.annotatedDataUrl || img.dataUrl;
         const aspect = aspects[i];
-        const imgH = Math.min((CW * aspect.h) / aspect.w, 90);
+        const imgH = Math.min((CW * aspect.h) / aspect.w, 100);
         check(imgH + 14);
         try {
           doc.addImage(src, 'JPEG', M, y, CW, imgH);
+          setDrw(doc, C.muted); doc.setLineWidth(0.2);
+          doc.rect(M, y, CW, imgH);
+          // Number badge
+          setFill(doc, C.navy);
+          doc.roundedRect(M + 2, y + 2, 8, 6, 1, 1, 'F');
+          doc.setFontSize(7); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
+          doc.text(String(i + 1), M + 6, y + 6.2, { align: 'center' });
           if (img.annotatedDataUrl) {
             setFill(doc, C.accent);
-            doc.roundedRect(M + 2, y + 2, 22, 6, 1.5, 1.5, 'F');
+            doc.roundedRect(M + CW - 24, y + 2, 22, 6, 1, 1, 'F');
             doc.setFontSize(6); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
-            doc.text('ANNOTATED', M + 4, y + 6);
+            doc.text('ANNOTATED', M + CW - 13, y + 6.2, { align: 'center' });
           }
         } catch { /* skip */ }
         y += imgH + 2;
         if (img.caption) {
-          doc.setFontSize(8); setFont(doc, 'normal', img.caption); setTxt(doc, C.mid);
+          doc.setFontSize(8.5); setFont(doc, 'normal', img.caption); setTxt(doc, C.dark);
           drawText(doc, img.caption, M, y + 4, { maxWidth: CW, rtlX: RX });
         }
-        y += img.caption ? 8 : 4;
+        y += img.caption ? 10 : 6;
       }
     }
-    y += 4;
+    y += 2;
   }
 
   // — Notes —
@@ -414,10 +429,10 @@ export async function exportReportToPdf(report: Report) {
     section('Notes');
     setFont(doc, 'normal', report.notes);
     const noteLines: string[] = doc.splitTextToSize(report.notes, CW - 12);
-    const boxH = noteLines.length * 5.5 + 12;
+    const boxH = noteLines.length * 5.8 + 12;
     check(boxH + 4);
     setFill(doc, C.bg); doc.roundedRect(M, y - 2, CW, boxH, 3, 3, 'F');
-    setDrw(doc, C.muted); doc.roundedRect(M, y - 2, CW, boxH, 3, 3, 'D');
+    setDrw(doc, C.muted); doc.setLineWidth(0.2); doc.roundedRect(M, y - 2, CW, boxH, 3, 3, 'D');
     if (isRTL) {
       setFill(doc, C.accent); doc.rect(RX - 3, y - 2, 3, boxH, 'F');
     } else {
@@ -426,9 +441,9 @@ export async function exportReportToPdf(report: Report) {
     doc.setFontSize(10); setFont(doc, 'normal', report.notes); setTxt(doc, C.dark);
     noteLines.forEach((l: string) => {
       drawText(doc, l, M + 8, y + 5, { rtlX: RX - 8 });
-      y += 5.5;
+      y += 5.8;
     });
-    y += 12;
+    y += 10;
   }
 
   // — Signature —
@@ -436,7 +451,7 @@ export async function exportReportToPdf(report: Report) {
     section('Digital Signature');
     check(48);
     setFill(doc, C.bg); doc.roundedRect(M, y - 2, CW, 42, 3, 3, 'F');
-    setDrw(doc, C.muted); doc.roundedRect(M, y - 2, CW, 42, 3, 3, 'D');
+    setDrw(doc, C.muted); doc.setLineWidth(0.2); doc.roundedRect(M, y - 2, CW, 42, 3, 3, 'D');
 
     const sigX = isRTL ? RX - 76 : M + 8;
     try { doc.addImage(report.signatureDataUrl, 'PNG', sigX, y + 2, 68, 22); } catch { /* skip */ }
@@ -453,62 +468,6 @@ export async function exportReportToPdf(report: Report) {
     }
     y += 12;
   }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FILL TABLE OF CONTENTS
-  // ═══════════════════════════════════════════════════════════════════════════
-  doc.setPage(tocPage);
-
-  setFill(doc, C.navy); doc.rect(0, 0, PW, 32, 'F');
-  setFill(doc, C.accent); doc.rect(0, 32, PW, 1.2, 'F');
-  doc.setFontSize(18); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
-  doc.text('Table of Contents', M, 22);
-
-  let ty = 48;
-  tocEntries.forEach((entry, i) => {
-    if (i % 2 === 0) { setFill(doc, C.bg); doc.rect(M, ty - 6, CW, 11, 'F'); }
-
-    if (isRTL) {
-      // RTL TOC: circle on right, title right-aligned, page number on left
-      setFill(doc, C.accent);
-      doc.circle(RX - 5, ty - 1, 3.5, 'F');
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
-      doc.text(entry.num, RX - 5, ty + 0.5, { align: 'center' });
-
-      doc.setFontSize(10); setFont(doc, 'normal', entry.title); setTxt(doc, C.dark);
-      doc.text(entry.title, RX - 13, ty, { align: 'right' });
-
-      const pageLabel = String(entry.page);
-      doc.setFontSize(7); setTxt(doc, C.muted);
-      setFont(doc, 'normal', entry.title);
-      const titleW = doc.getTextWidth(entry.title);
-      let dx = RX - 13 - titleW - 3;
-      const stopX = M + doc.getTextWidth(pageLabel) + 6;
-      while (dx > stopX) { doc.text('.', dx, ty); dx -= 2.5; }
-
-      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); setTxt(doc, C.accent);
-      doc.text(pageLabel, M + 2, ty);
-    } else {
-      setFill(doc, C.accent);
-      doc.circle(M + 5, ty - 1, 3.5, 'F');
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold'); setTxt(doc, C.white);
-      doc.text(entry.num, M + 5, ty + 0.5, { align: 'center' });
-
-      doc.setFontSize(10); setFont(doc, 'normal', entry.title); setTxt(doc, C.dark);
-      doc.text(entry.title, M + 13, ty);
-
-      const pageLabel = String(entry.page);
-      doc.setFontSize(7); setTxt(doc, C.muted);
-      let dx = M + 13 + doc.getTextWidth(entry.title) + 3;
-      const stopX = PW - M - doc.getTextWidth(pageLabel) - 6;
-      while (dx < stopX) { doc.text('.', dx, ty); dx += 2.5; }
-
-      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); setTxt(doc, C.accent);
-      doc.text(pageLabel, PW - M - 2, ty, { align: 'right' });
-    }
-
-    ty += 12;
-  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // FOOTERS
