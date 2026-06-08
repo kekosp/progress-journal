@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   getEvents, saveEvent, deleteEvent, toggleEventComplete,
   generateEventId, MaintenanceEvent, MaintenancePriority, MaintenanceCategory
@@ -12,10 +12,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  ChevronLeft, ChevronRight, Plus, Trash2, Check, X, Calendar, ClipboardList
+  ChevronLeft, ChevronRight, Plus, Trash2, Check, X, Calendar, ClipboardList, Upload
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval,
   getDay, isSameDay, isSameMonth, isToday, parseISO, addMonths, subMonths } from 'date-fns';
+import * as XLSX from 'xlsx';
+import { toast } from '@/hooks/use-toast';
 
 const PRIORITY_COLORS: Record<MaintenancePriority, string> = {
   low:      'bg-blue-400/80',
@@ -61,6 +63,7 @@ export function MaintenanceCalendar() {
   const [editingEvent, setEditingEvent] = useState<MaintenanceEvent | null>(null);
   const [form, setForm] = useState<EventFormData>(empty());
   const [showDayModal, setShowDayModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = () => setEvents(getEvents());
 
@@ -132,6 +135,66 @@ export function MaintenanceCalendar() {
     refresh();
   }
 
+  function normalizeDate(input: string): string | null {
+    if (!input) return null;
+    const s = String(input).trim();
+    // YYYY-MM-DD
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+    // DD/MM/YYYY or MM/DD/YYYY -> assume DD/MM/YYYY
+    m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd');
+    return null;
+  }
+
+  function handleCsvFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = ev.target?.result;
+        const wb = XLSX.read(data, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        let imported = 0, skipped = 0;
+        const validCats: MaintenanceCategory[] = ['inspection','maintenance','safety','quality','progress','incident','other'];
+        const validPris: MaintenancePriority[] = ['low','medium','high','critical'];
+        rows.forEach(row => {
+          const lower: any = {};
+          Object.keys(row).forEach(k => { lower[k.toLowerCase().trim()] = row[k]; });
+          const title = String(lower.title || lower.name || '').trim();
+          const dateRaw = String(lower.date || lower.scheduled || '').trim();
+          const date = normalizeDate(dateRaw);
+          if (!title || !date) { skipped++; return; }
+          const catRaw = String(lower.category || 'maintenance').toLowerCase().trim() as MaintenanceCategory;
+          const priRaw = String(lower.priority || 'medium').toLowerCase().trim() as MaintenancePriority;
+          const category = validCats.includes(catRaw) ? catRaw : 'maintenance';
+          const priority = validPris.includes(priRaw) ? priRaw : 'medium';
+          const description = String(lower.description || lower.notes || '').trim() || undefined;
+          saveEvent({
+            id: generateEventId(),
+            title: title.slice(0, 200),
+            description: description?.slice(0, 1000),
+            date,
+            category,
+            priority,
+            completed: false,
+          });
+          imported++;
+        });
+        refresh();
+        toast({
+          title: imported > 0 ? 'Import complete' : 'No events imported',
+          description: `Imported ${imported}${skipped ? ` · Skipped ${skipped}` : ''}. Expected columns: title, date, category, priority, description.`,
+        });
+      } catch (err) {
+        toast({ title: 'Import failed', description: 'Could not parse file.', variant: 'destructive' });
+      }
+    };
+    reader.readAsBinaryString(file);
+  }
+
   const selectedDayEvents = selectedDate ? eventsForDay(selectedDate) : [];
   const selectedDayReports = selectedDate ? reportsForDay(selectedDate) : [];
 
@@ -146,6 +209,27 @@ export function MaintenanceCalendar() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 mt-4 space-y-4">
+
+        {/* Import CSV */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx,.xls,text/csv"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleCsvFile(f);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+          }}
+        />
+        <Button
+          variant="outline"
+          className="w-full gap-2 h-9"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload className="w-3.5 h-3.5" />
+          <span className="text-xs">Import schedule from CSV</span>
+        </Button>
 
         {/* Month navigation */}
         <div className="bg-card rounded-xl border border-border overflow-hidden">
