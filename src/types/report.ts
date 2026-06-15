@@ -8,6 +8,7 @@ export interface ReportImage {
   caption?: string;
   timestamp: string;
   annotatedDataUrl?: string;
+  tag?: 'before' | 'after';
 }
 
 export interface Report {
