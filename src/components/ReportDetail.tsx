@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Report, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '@/types/report';
 import { deleteReport } from '@/lib/storage';
 import { exportReportToPdf } from '@/lib/export-pdf';
 import { exportReportsCsv, exportReportsXlsx } from '@/lib/export-csv-xlsx';
+import { ReportComments } from '@/components/ReportComments';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ArrowLeft, Edit2, Trash2, FileDown, MapPin, FolderOpen, PenTool, Clock, FileText, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, FileDown, MapPin, FolderOpen, PenTool, Clock, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, X, ZoomIn, ArrowLeftRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -44,6 +45,14 @@ function formatLostTime(report: Report): string | null {
 export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const openLightbox = useCallback((idx: number) => setLightboxIndex(idx), []);
+  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+  const prevPhoto = useCallback(() =>
+    setLightboxIndex(i => (i != null ? (i - 1 + report.images.length) % report.images.length : null)), [report.images.length]);
+  const nextPhoto = useCallback(() =>
+    setLightboxIndex(i => (i != null ? (i + 1) % report.images.length : null)), [report.images.length]);
 
   const handleDelete = () => {
     deleteReport(report.id);
@@ -198,33 +207,142 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
         )}
 
         {/* Images */}
-        {report.images.length > 0 && (
-          <div>
-            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-              Photos ({report.images.length})
-            </h2>
-            <div className="grid grid-cols-2 gap-2">
-              {report.images.map(img => (
-                <div key={img.id} className="rounded-lg overflow-hidden bg-muted">
-                  <div className="aspect-square relative">
-                    <img src={img.annotatedDataUrl || img.dataUrl} alt={img.caption || ''}
-                      className="w-full h-full object-cover" />
-                    {img.annotatedDataUrl && (
-                      <div className="absolute top-1 left-1">
-                        <span className="bg-primary/80 text-primary-foreground text-[8px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
-                          <PenTool className="w-2 h-2" /> Annotated
-                        </span>
-                      </div>
-                    )}
+        {report.images.length > 0 && (() => {
+          const beforeImgs = report.images.filter(i => i.tag === 'before');
+          const afterImgs  = report.images.filter(i => i.tag === 'after');
+          const untagged   = report.images.filter(i => !i.tag);
+          const hasComparison = beforeImgs.length > 0 || afterImgs.length > 0;
+          return (
+            <div className="space-y-3">
+              <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Photos ({report.images.length})
+              </h2>
+
+              {/* Before / After side-by-side */}
+              {hasComparison && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <ArrowLeftRight className="w-3 h-3 text-primary" />
+                    <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Before / After</span>
                   </div>
-                  {img.caption && (
-                    <p className="text-xs text-muted-foreground px-2 py-1.5 bg-card border-t border-border">
-                      {img.caption}
-                    </p>
-                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Before column */}
+                    <div className="space-y-1">
+                      <div className="text-[9px] font-bold text-blue-400 uppercase tracking-widest text-center bg-blue-500/10 rounded-t-lg py-0.5">Before</div>
+                      {beforeImgs.length > 0 ? beforeImgs.map((img, idx) => (
+                        <div key={img.id} className="rounded-b-lg overflow-hidden bg-muted cursor-pointer active:scale-95 transition-transform"
+                          onClick={() => openLightbox(report.images.indexOf(img))}>
+                          <div className="aspect-square relative">
+                            <img src={img.annotatedDataUrl || img.dataUrl} alt={img.caption || ''} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/30 transition-opacity">
+                              <ZoomIn className="w-5 h-5 text-white" />
+                            </div>
+                          </div>
+                          {img.caption && <p className="text-[10px] text-muted-foreground px-2 py-1 bg-card border-t border-border">{img.caption}</p>}
+                        </div>
+                      )) : (
+                        <div className="aspect-square rounded-b-lg bg-muted/40 border border-dashed border-border flex items-center justify-center">
+                          <p className="text-[10px] text-muted-foreground">No before photo</p>
+                        </div>
+                      )}
+                    </div>
+                    {/* After column */}
+                    <div className="space-y-1">
+                      <div className="text-[9px] font-bold text-green-400 uppercase tracking-widest text-center bg-green-500/10 rounded-t-lg py-0.5">After</div>
+                      {afterImgs.length > 0 ? afterImgs.map((img, idx) => (
+                        <div key={img.id} className="rounded-b-lg overflow-hidden bg-muted cursor-pointer active:scale-95 transition-transform"
+                          onClick={() => openLightbox(report.images.indexOf(img))}>
+                          <div className="aspect-square relative">
+                            <img src={img.annotatedDataUrl || img.dataUrl} alt={img.caption || ''} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/30 transition-opacity">
+                              <ZoomIn className="w-5 h-5 text-white" />
+                            </div>
+                          </div>
+                          {img.caption && <p className="text-[10px] text-muted-foreground px-2 py-1 bg-card border-t border-border">{img.caption}</p>}
+                        </div>
+                      )) : (
+                        <div className="aspect-square rounded-b-lg bg-muted/40 border border-dashed border-border flex items-center justify-center">
+                          <p className="text-[10px] text-muted-foreground">No after photo</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* Untagged photos */}
+              {untagged.length > 0 && (
+                <div className="grid grid-cols-2 gap-2">
+                  {untagged.map((img) => (
+                    <div key={img.id}
+                      className="rounded-lg overflow-hidden bg-muted cursor-pointer active:scale-95 transition-transform"
+                      onClick={() => openLightbox(report.images.indexOf(img))}>
+                      <div className="aspect-square relative">
+                        <img src={img.annotatedDataUrl || img.dataUrl} alt={img.caption || ''} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/30 transition-opacity">
+                          <ZoomIn className="w-6 h-6 text-white" />
+                        </div>
+                        {img.annotatedDataUrl && (
+                          <div className="absolute top-1 left-1">
+                            <span className="bg-primary/80 text-primary-foreground text-[8px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                              <PenTool className="w-2 h-2" /> Annotated
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {img.caption && (
+                        <p className="text-xs text-muted-foreground px-2 py-1.5 bg-card border-t border-border">{img.caption}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+          );
+        })()}
+
+        {/* Lightbox */}
+        {lightboxIndex !== null && (
+          <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center" onClick={closeLightbox}>
+            <button onClick={closeLightbox} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20">
+              <X className="w-5 h-5" />
+            </button>
+            <p className="absolute top-5 left-1/2 -translate-x-1/2 text-white/70 text-xs font-medium">
+              {lightboxIndex + 1} / {report.images.length}
+              {report.images[lightboxIndex].tag && (
+                <span className={`ml-2 font-bold uppercase ${report.images[lightboxIndex].tag === 'before' ? 'text-blue-400' : 'text-green-400'}`}>
+                  {report.images[lightboxIndex].tag}
+                </span>
+              )}
+            </p>
+            <div className="max-w-full max-h-[80vh] px-12 flex items-center justify-center" onClick={e => e.stopPropagation()}>
+              <img src={report.images[lightboxIndex].annotatedDataUrl || report.images[lightboxIndex].dataUrl}
+                alt={report.images[lightboxIndex].caption || ''}
+                className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl" />
+            </div>
+            {report.images[lightboxIndex].caption && (
+              <p className="absolute bottom-16 left-0 right-0 text-center text-white/80 text-sm px-8">
+                {report.images[lightboxIndex].caption}
+              </p>
+            )}
+            {report.images.length > 1 && (
+              <>
+                <button onClick={e => { e.stopPropagation(); prevPhoto(); }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button onClick={e => { e.stopPropagation(); nextPhoto(); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20">
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                <div className="absolute bottom-6 flex gap-1.5">
+                  {report.images.map((_, i) => (
+                    <button key={i} onClick={e => { e.stopPropagation(); setLightboxIndex(i); }}
+                      className={`w-1.5 h-1.5 rounded-full transition-all ${i === lightboxIndex ? 'bg-white scale-125' : 'bg-white/40'}`} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -255,6 +373,9 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
             <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-all">{report.notes}</p>
           </div>
         )}
+
+        {/* Comments thread */}
+        <ReportComments reportId={report.id} />
 
         <div className="h-6" />
       </div>
