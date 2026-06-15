@@ -7,6 +7,11 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { App as CapApp } from '@capacitor/app';
 import { LockScreen } from "./components/LockScreen";
 import { isAuthEnabled } from "./lib/auth";
+import {
+  requestNotificationPermission,
+  createNotificationChannel,
+  scheduleMaintenceNotifications,
+} from "./lib/notifications";
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -16,12 +21,22 @@ const queryClient = new QueryClient();
 function AppShell() {
   const [locked, setLocked] = useState<boolean>(isAuthEnabled());
 
-  // Re-lock when the app comes back to the foreground
+  // Request notification permission & schedule on first load
+  useEffect(() => {
+    (async () => {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        await createNotificationChannel();
+        await scheduleMaintenceNotifications();
+      }
+    })();
+  }, []);
+
+  // Re-lock when the app comes back to the foreground; also re-schedule notifications
   useEffect(() => {
     const listener = CapApp.addListener('appStateChange', ({ isActive }) => {
-      if (!isActive) return; // going to background — don't lock yet (user may glance away)
-      // On resume we don't auto-lock (user chose "on launch" only).
-      // If you want background locking, set locked(true) here on !isActive.
+      if (!isActive) return;
+      scheduleMaintenceNotifications();
     });
     return () => { listener.then(h => h.remove()); };
   }, []);
