@@ -7,6 +7,8 @@ import { saveReport, generateId } from '@/lib/storage';
 import { useImageAttachments } from '@/hooks/use-image-attachments';
 import { ImageAnnotator } from '@/components/ImageAnnotator';
 import { SignaturePad } from '@/components/SignaturePad';
+import { TemplatePickerModal } from '@/components/TemplatePickerModal';
+import { ReportTemplate, saveTemplate, generateTemplateId } from '@/lib/template-storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
-import { ArrowLeft, Camera, ImagePlus, X, Save, PenTool, Clock, Hourglass } from 'lucide-react';
+import { ArrowLeft, Camera, ImagePlus, X, Save, PenTool, Clock, Hourglass, LayoutTemplate, BookMarked } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -52,6 +54,35 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
   const [signatureDataUrl, setSignatureDataUrl] = useState(report?.signatureDataUrl ?? '');
   const [signedBy, setSignedBy] = useState(report?.signedBy ?? '');
   const [annotatingImageId, setAnnotatingImageId] = useState<string | null>(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+
+  const applyTemplate = (t: ReportTemplate) => {
+    if (t.title) setTitle(t.title);
+    if (t.description) setDescription(t.description);
+    if (t.notes) setNotes(t.notes);
+    if (t.projectName) setProjectName(t.projectName);
+    if (t.location) setLocation(t.location);
+    setCategory(t.category);
+    setPriority(t.priority);
+    toast.success(`Template "${t.name}" applied`);
+  };
+
+  const handleSaveAsTemplate = () => {
+    if (!templateName.trim()) { toast.error('Template name is required'); return; }
+    const t: ReportTemplate = {
+      id: generateTemplateId(),
+      name: templateName.trim(),
+      category, priority,
+      title, description, notes, projectName, location,
+      createdAt: new Date().toISOString(),
+    };
+    saveTemplate(t);
+    setTemplateName('');
+    setShowSaveTemplate(false);
+    toast.success(`Template "${t.name}" saved`);
+  };
 
   const { images, setImages, addImages, removeImage, triggerInput, takeNativePhoto, inputRef } =
     useImageAttachments(report?.images ?? []);
@@ -140,6 +171,8 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
+      <TemplatePickerModal open={showTemplatePicker} onClose={() => setShowTemplatePicker(false)} onSelect={applyTemplate} />
+
       {/* Header */}
       <div className="bg-primary text-primary-foreground px-4 pt-12 pb-4">
         <div className="max-w-lg mx-auto flex items-center justify-between">
@@ -150,10 +183,18 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
             </Button>
             <h1 className="text-base font-bold">{report ? 'Edit Report' : 'New Report'}</h1>
           </div>
-          <Button size="sm" onClick={handleSave}
-            className="bg-accent text-accent-foreground hover:bg-accent/90 gap-1.5">
-            <Save className="w-4 h-4" /> Save
-          </Button>
+          <div className="flex items-center gap-2">
+            {!report && (
+              <Button size="sm" variant="ghost" onClick={() => setShowTemplatePicker(true)}
+                className="text-primary-foreground hover:bg-primary-foreground/10 gap-1.5 text-xs">
+                <LayoutTemplate className="w-3.5 h-3.5" /> Template
+              </Button>
+            )}
+            <Button size="sm" onClick={handleSave}
+              className="bg-accent text-accent-foreground hover:bg-accent/90 gap-1.5">
+              <Save className="w-4 h-4" /> Save
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -418,6 +459,21 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
                     maxLength={200}
                     className="w-full text-[10px] px-1.5 py-1 bg-card border-t border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
+                  {/* Before / After tag */}
+                  <div className="flex border-t border-border">
+                    {(['before', 'after'] as const).map(t => (
+                      <button key={t}
+                        onClick={() => setImages(prev =>
+                          prev.map(i => i.id === img.id ? { ...i, tag: i.tag === t ? undefined : t } : i)
+                        )}
+                        className={`flex-1 text-[9px] py-0.5 font-bold uppercase tracking-wide transition-colors
+                          ${img.tag === t
+                            ? t === 'before' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'
+                            : 'bg-card text-muted-foreground hover:bg-muted'}`}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
                   <div className="absolute top-1 right-1 flex gap-1">
                     <button onClick={() => setAnnotatingImageId(img.id)}
                       className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow"
@@ -487,6 +543,40 @@ export function ReportForm({ report, onBack, onSaved }: Props) {
             />
           )}
         </div>
+
+        {/* Save as Template */}
+        {!report && (
+          <div className="bg-card border border-border rounded-xl p-3 space-y-2">
+            {!showSaveTemplate ? (
+              <button
+                onClick={() => setShowSaveTemplate(true)}
+                className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <BookMarked className="w-3.5 h-3.5 text-primary" />
+                Save current form as a reusable template
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Template Name</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={templateName}
+                    onChange={e => setTemplateName(e.target.value)}
+                    placeholder="e.g. Daily Inspection"
+                    className="h-8 text-sm bg-background"
+                    maxLength={80}
+                  />
+                  <Button size="sm" onClick={handleSaveAsTemplate} className="h-8 gap-1 text-xs shrink-0">
+                    <BookMarked className="w-3 h-3" /> Save
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowSaveTemplate(false)} className="h-8 px-2 shrink-0">
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bottom save button */}
         <Button onClick={handleSave} className="w-full gap-2 bg-primary text-primary-foreground h-12">
