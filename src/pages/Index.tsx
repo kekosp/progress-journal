@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Report, ReportCategory, ReportPriority, CATEGORY_LABELS, PRIORITY_LABELS } from '@/types/report';
+import { Report, ReportCategory, ReportPriority, ReportStatus, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '@/types/report';
 import { getReports, getReportById } from '@/lib/storage';
 import { getUpcomingCount, getDueSoonEvents } from '@/lib/maintenance-storage';
 import { getInventoryDueCount, getDueSoonInventory, getDueSoonService } from '@/lib/inventory-storage';
@@ -19,7 +19,7 @@ import { CredentialVault } from '@/components/CredentialVault';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package, CheckSquare, FileDown, FileText, FileSpreadsheet, History, KeyRound } from 'lucide-react';
+import { Plus, Search, ClipboardList, Filter, ArrowUpDown, ArrowLeftRight, Lock, Shield, BarChart3, Calendar, Package, CheckSquare, FileDown, FileText, FileSpreadsheet, History, KeyRound, X } from 'lucide-react';
 import { exportBatchReportsToPdf } from '@/lib/export-pdf';
 import { exportReportsCsv, exportReportsXlsx } from '@/lib/export-csv-xlsx';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -39,6 +39,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -170,9 +171,22 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
 
   const filtered = useMemo(() => {
     let r = reports;
-    if (search) { const q = search.toLowerCase(); r = r.filter(rep => rep.title.toLowerCase().includes(q) || rep.description.toLowerCase().includes(q) || rep.projectName?.toLowerCase().includes(q)); }
+    if (search) {
+      const q = search.toLowerCase();
+      r = r.filter(rep =>
+        rep.title.toLowerCase().includes(q) ||
+        rep.description.toLowerCase().includes(q) ||
+        rep.projectName?.toLowerCase().includes(q) ||
+        rep.location?.toLowerCase().includes(q) ||
+        rep.notes?.toLowerCase().includes(q) ||
+        STATUS_LABELS[rep.status]?.toLowerCase().includes(q) ||
+        CATEGORY_LABELS[rep.category]?.toLowerCase().includes(q) ||
+        PRIORITY_LABELS[rep.priority]?.toLowerCase().includes(q)
+      );
+    }
     if (filterCategory !== 'all') r = r.filter(rep => rep.category === filterCategory);
     if (filterPriority !== 'all') r = r.filter(rep => rep.priority === filterPriority);
+    if (filterStatus !== 'all') r = r.filter(rep => rep.status === filterStatus);
     if (dateFrom) r = r.filter(rep => rep.createdAt >= dateFrom);
     if (dateTo) r = r.filter(rep => new Date(rep.createdAt) <= new Date(dateTo + 'T23:59:59'));
     return [...r].sort((a, b) => {
@@ -182,7 +196,7 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
       else if (sortField === 'status') cmp = statusOrder[a.status] - statusOrder[b.status];
       return sortDir === 'desc' ? -cmp : cmp;
     });
-  }, [reports, search, filterCategory, filterPriority, sortField, sortDir, dateFrom, dateTo]);
+  }, [reports, search, filterCategory, filterPriority, filterStatus, sortField, sortDir, dateFrom, dateTo]);
 
   const stats = useMemo(() => ({
     total: reports.length,
@@ -301,7 +315,12 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search archives..." className="pl-9 bg-muted border-border text-sm h-9 rounded-xl" />
+                    <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search title, location, notes, status…" className="pl-9 bg-muted border-border text-sm h-9 rounded-xl" />
+                    {search && (
+                      <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                   <Button variant={showFilters ? 'default' : 'outline'} size="sm" onClick={() => setShowFilters(!showFilters)} className="h-9 w-9 p-0 rounded-xl"><Filter className="w-4 h-4" /></Button>
                 </div>
@@ -320,6 +339,13 @@ const Index = ({ onLock }: { onLock?: () => void }) => {
                         <SelectContent>
                           <SelectItem value="all" className="text-xs">All Priorities</SelectItem>
                           {(Object.entries(PRIORITY_LABELS) as [ReportPriority, string][]).map(([k, v]) => (<SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="text-xs h-8 bg-background col-span-2"><SelectValue placeholder="Status" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
+                          {(Object.entries(STATUS_LABELS) as [ReportStatus, string][]).map(([k, v]) => (<SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>))}
                         </SelectContent>
                       </Select>
                     </div>
