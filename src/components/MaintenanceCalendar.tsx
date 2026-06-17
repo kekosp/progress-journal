@@ -2,7 +2,8 @@ import { useState, useMemo, useRef } from 'react';
 import {
   getEvents, saveEvent, saveRecurringEvent, deleteEvent, deleteEventSeries,
   toggleEventComplete, generateEventId,
-  MaintenanceEvent, MaintenancePriority, MaintenanceCategory, RepeatFrequency
+  MaintenanceEvent, MaintenancePriority, MaintenanceCategory, RepeatFrequency,
+  CATEGORY_LABELS, PRIORITY_LABELS, PRIORITY_COLORS, PRIORITY_BORDER,
 } from '@/lib/maintenance-storage';
 import { getReports } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
@@ -20,29 +21,6 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval,
   startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
-
-const PRIORITY_COLORS: Record<MaintenancePriority, string> = {
-  low:      'bg-blue-400/80',
-  medium:   'bg-yellow-400/80',
-  high:     'bg-orange-500/80',
-  critical: 'bg-red-500/80',
-};
-
-const PRIORITY_BORDER: Record<MaintenancePriority, string> = {
-  low:      'border-blue-400',
-  medium:   'border-yellow-400',
-  high:     'border-orange-500',
-  critical: 'border-red-500',
-};
-
-const CATEGORY_LABELS: Record<MaintenanceCategory, string> = {
-  inspection: 'Inspection', maintenance: 'Maintenance', safety: 'Safety',
-  quality: 'Quality', progress: 'Progress', incident: 'Incident', other: 'Other',
-};
-
-const PRIORITY_LABELS: Record<MaintenancePriority, string> = {
-  low: 'Low', medium: 'Medium', high: 'High', critical: 'Critical',
-};
 
 interface EventFormData {
   title: string;
