@@ -12,6 +12,11 @@ import {
   createNotificationChannel,
   scheduleMaintenceNotifications,
 } from "./lib/notifications";
+import { migrateMaintenanceStorage } from "./lib/maintenance-storage";
+
+// Run once on module load — merges legacy 'maintenance-full-schedule' into
+// the unified 'maintenance-schedule' key and removes the old key.
+migrateMaintenanceStorage();
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
