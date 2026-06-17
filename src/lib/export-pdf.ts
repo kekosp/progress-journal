@@ -7,7 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { registerArabicFonts, hasArabic, getFontName } from './pdf-arabic';
 
 // ─── Platform save helper ─────────────────────────────────────────────────────
-async function savePdf(
+export async function savePdf(
   doc: jsPDF,
   filename: string,
 ): Promise<{ saved: boolean; path: string; shared?: boolean }> {
@@ -36,9 +36,9 @@ async function savePdf(
 }
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-type RGB = [number, number, number];
+export type RGB = [number, number, number];
 
-const C: Record<string, RGB> = {
+export const C: Record<string, RGB> = {
   // Brand
   navy:        [18,  32,  62],
   navyMid:     [28,  46,  86],
@@ -67,13 +67,13 @@ const C: Record<string, RGB> = {
   pageDark:    [12,  14,  22],   // for photo spread pages
 };
 
-const PRIORITY_COLOR: Record<string, RGB> = {
+export const PRIORITY_COLOR: Record<string, RGB> = {
   low:      C.accent,
   medium:   C.yellow,
   high:     C.orange,
   critical: C.red,
 };
-const STATUS_COLOR: Record<string, RGB> = {
+export const STATUS_COLOR: Record<string, RGB> = {
   draft:        C.light,
   'in-progress':C.accent,
   completed:    C.green,
@@ -81,16 +81,16 @@ const STATUS_COLOR: Record<string, RGB> = {
 };
 
 // ─── Drawing primitives ───────────────────────────────────────────────────────
-const setFill = (doc: jsPDF, c: RGB) => doc.setFillColor(c[0], c[1], c[2]);
-const setTxt  = (doc: jsPDF, c: RGB) => doc.setTextColor(c[0], c[1], c[2]);
-const setDrw  = (doc: jsPDF, c: RGB) => doc.setDrawColor(c[0], c[1], c[2]);
+export const setFill = (doc: jsPDF, c: RGB) => doc.setFillColor(c[0], c[1], c[2]);
+export const setTxt  = (doc: jsPDF, c: RGB) => doc.setTextColor(c[0], c[1], c[2]);
+export const setDrw  = (doc: jsPDF, c: RGB) => doc.setDrawColor(c[0], c[1], c[2]);
 
-function setFont(doc: jsPDF, style: 'normal' | 'bold', text?: string) {
+export function setFont(doc: jsPDF, style: 'normal' | 'bold', text?: string) {
   const fontName = text && hasArabic(text) ? 'Amiri' : 'helvetica';
   doc.setFont(fontName, style);
 }
 
-function drawText(
+export function drawText(
   doc: jsPDF,
   text: string,
   x: number,
@@ -106,7 +106,7 @@ function drawText(
 }
 
 /** Rounded pill badge — returns width consumed (including gap). */
-function pill(doc: jsPDF, text: string, x: number, y: number, color: RGB, textColor: RGB = C.white): number {
+export function pill(doc: jsPDF, text: string, x: number, y: number, color: RGB, textColor: RGB = C.white): number {
   setFont(doc, 'bold', text);
   const tw = doc.getTextWidth(text);
   const pw = tw + 10;
@@ -120,7 +120,7 @@ function pill(doc: jsPDF, text: string, x: number, y: number, color: RGB, textCo
   return pw + 4;
 }
 
-function fmtHours(h: number, m?: number): string {
+export function fmtHours(h: number, m?: number): string {
   const hours = Math.floor(h);
   const mins  = m ?? Math.round((h - hours) * 60);
   if (hours === 0) return `${mins}m`;
