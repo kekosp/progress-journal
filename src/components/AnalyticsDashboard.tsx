@@ -1,13 +1,18 @@
 import { useMemo, useState, useEffect } from 'react';
 import { getReports, getTimeInProgressMs } from '@/lib/storage';
-import { Report, ReportPriority, PRIORITY_LABELS, CATEGORY_LABELS, ReportCategory } from '@/types/report';
-import { format, parseISO, startOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
-import { TrendingUp, Clock, AlertTriangle, CheckCircle2, BarChart3, Activity, Hourglass } from 'lucide-react';
+import { Report, ReportPriority, PRIORITY_LABELS, CATEGORY_LABELS, ReportCategory, STATUS_LABELS } from '@/types/report';
+import { format, parseISO, startOfMonth, eachMonthOfInterval, subMonths, addMonths, isSameMonth } from 'date-fns';
+import { TrendingUp, Clock, AlertTriangle, CheckCircle2, BarChart3, Activity, Hourglass, ChevronLeft, ChevronRight, FileDown, FileText, FileSpreadsheet, CalendarRange } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
   BarChart, Bar as ReBar, 
 } from 'recharts';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { buildMonthlyStats, exportMonthlyReportToPdf } from '@/lib/export-monthly-report';
+import { exportReportsCsv, exportReportsXlsx } from '@/lib/export-csv-xlsx';
+import { toast } from '@/components/ui/use-toast';
 
 const PRIORITY_CHART_COLORS: Record<ReportPriority, string> = {
   low: '#60a5fa', medium: '#eab308', high: '#f97316', critical: '#ef4444',
@@ -61,6 +66,24 @@ function ChartTooltip({ active, payload, label }: any) {
 export function AnalyticsDashboard() {
   const reports = useMemo(() => getReports(), []);
   const [trendRange, setTrendRange] = useState<6 | 12>(6);
+  const [selectedMonth, setSelectedMonth] = useState(() => startOfMonth(new Date()));
+  const [exporting, setExporting] = useState(false);
+
+  const monthlyStats = useMemo(() => buildMonthlyStats(reports, selectedMonth), [reports, selectedMonth]);
+  const isCurrentMonth = isSameMonth(selectedMonth, new Date());
+
+  const handleMonthlyPdfExport = async () => {
+    setExporting(true);
+    try {
+      await exportMonthlyReportToPdf(reports, selectedMonth);
+      toast({ title: '✅ Monthly report exported', description: `${monthlyStats.monthLabel} performance report saved.` });
+    } catch (e: any) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Tick every 30s so live in-progress timers update on screen
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -194,6 +217,108 @@ export function AnalyticsDashboard() {
               <div className="text-[9px] text-muted-foreground/70">{kpi.sub}</div>
             </div>
           ))}
+        </div>
+
+        {/* ── Monthly Report ───────────────────────────────────────────────── */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5">
+              <CalendarRange className="w-4 h-4 text-primary" />
+              <p className="text-sm font-semibold text-foreground">Monthly Report</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setSelectedMonth(m => subMonths(m, 1))}
+                className="p-1 rounded-lg hover:bg-muted transition-colors">
+                <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <span className="text-xs font-semibold text-foreground w-20 text-center">
+                {monthlyStats.monthLabel}
+              </span>
+              <button onClick={() => setSelectedMonth(m => addMonths(m, 1))}
+                disabled={isCurrentMonth}
+                className="p-1 rounded-lg hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+
+          {monthlyStats.total === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              No reports created in {monthlyStats.monthLabel}.
+            </p>
+          ) : (
+            <>
+              {/* Mini KPI row */}
+              <div className="grid grid-cols-4 gap-1.5 mb-3">
+                <div className="bg-muted/50 rounded-lg p-2 text-center">
+                  <p className="text-base font-bold text-foreground leading-tight">{monthlyStats.total}</p>
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-wide">Total</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-2 text-center">
+                  <p className="text-base font-bold text-green-500 leading-tight">{monthlyStats.completionRate}%</p>
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-wide">Done Rate</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-2 text-center">
+                  <p className={`text-base font-bold leading-tight ${monthlyStats.criticalOpen > 0 ? 'text-red-500' : 'text-foreground'}`}>{monthlyStats.criticalOpen}</p>
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-wide">Critical</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-2 text-center">
+                  <p className="text-base font-bold text-orange-500 leading-tight">{monthlyStats.lostTimeHours > 0 ? `${Math.round(monthlyStats.lostTimeHours)}h` : '0h'}</p>
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-wide">Lost Time</p>
+                </div>
+              </div>
+
+              {/* Status breakdown mini bars */}
+              <div className="space-y-1 mb-3">
+                {([
+                  ['Completed', monthlyStats.completed, 'bg-green-500'],
+                  ['In Progress', monthlyStats.inProgress, 'bg-blue-500'],
+                  ['Draft', monthlyStats.draft, 'bg-muted-foreground/40'],
+                  ['Archived', monthlyStats.archived, 'bg-muted-foreground/20'],
+                ] as [string, number, string][]).filter(([, c]) => c > 0).map(([label, count, color]) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground w-16 shrink-0">{label}</span>
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div className={`h-full ${color} rounded-full`} style={{ width: `${(count / monthlyStats.total) * 100}%` }} />
+                    </div>
+                    <span className="text-[10px] font-semibold text-foreground w-5 text-right">{count}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Top categories this month */}
+              {monthlyStats.byCategory.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {monthlyStats.byCategory.slice(0, 4).map(([cat, count]) => (
+                    <span key={cat} className="text-[9px] bg-muted px-2 py-1 rounded-full text-muted-foreground">
+                      {CATEGORY_LABELS[cat]} <span className="font-semibold text-foreground">{count}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Export buttons */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" className="w-full gap-1.5 text-xs h-8" disabled={exporting}>
+                    <FileDown className="w-3.5 h-3.5" />
+                    {exporting ? 'Exporting…' : `Export ${monthlyStats.monthLabel} Report`}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-56">
+                  <DropdownMenuItem onClick={handleMonthlyPdfExport} className="gap-2">
+                    <FileText className="w-4 h-4" /> PDF Summary Report
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportReportsCsv(monthlyStats.reports)} className="gap-2">
+                    <FileDown className="w-4 h-4" /> CSV (raw report list)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportReportsXlsx(monthlyStats.reports)} className="gap-2">
+                    <FileSpreadsheet className="w-4 h-4" /> Excel (raw report list)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
         </div>
 
         {/* ── Report Trends (Area Chart) ───────────────────────────────────── */}
