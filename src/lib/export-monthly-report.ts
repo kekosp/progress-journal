@@ -236,45 +236,35 @@ export async function exportMonthlyReportToPdf(
     doc.setFontSize(8); setFont(doc, 'normal'); setTxt(doc, C.mid);
     doc.text('No reports were created this month.', M, y);
   } else {
-    // Fixed right-aligned zones for the two pill columns so badges never
-    // overflow the page edge regardless of how long the text inside is.
-    const statusZoneRight = M + CW;
-    const statusZoneLeft  = statusZoneRight - 28;
-    const prioZoneRight   = statusZoneLeft - 4;
-    const prioZoneLeft    = prioZoneRight - 26;
-    const catRight        = prioZoneLeft - 4;
-    const catLeft         = M + CW * 0.55;
+    // Fixed left-aligned column starts, sized generously for the longest
+    // possible text in each ("in progress", "Critical"), so headers and
+    // pills always share the same starting x and stay visually tied.
+    const dateX   = M + 2;
+    const titleX  = M + 22;
+    const catX    = M + 90;
+    const prioX   = M + 116;
+    const statusX = M + 146;
 
     // header row
     setFill(doc, C.subtle); doc.rect(M, y - 4, CW, 7, 'F');
     doc.setFontSize(7); setFont(doc, 'bold'); setTxt(doc, C.mid);
-    doc.text('DATE', M + 2, y);
-    doc.text('TITLE', M + 22, y);
-    doc.text('CATEGORY', catLeft, y);
-    doc.text('PRIORITY', prioZoneLeft, y);
-    doc.text('STATUS', statusZoneLeft, y);
+    doc.text('DATE', dateX, y);
+    doc.text('TITLE', titleX, y);
+    doc.text('CATEGORY', catX, y);
+    doc.text('PRIORITY', prioX, y);
+    doc.text('STATUS', statusX, y);
     y += 6;
-
-    /** Measure what width pill() will actually render at, then return a
-     *  left-x that right-aligns the badge within [zoneLeft, zoneRight]. */
-    const pillXForZone = (text: string, zoneLeft: number, zoneRight: number): number => {
-      doc.setFontSize(7.5); setFont(doc, 'bold', text);
-      const w = doc.getTextWidth(text) + 10;
-      return Math.max(zoneLeft, zoneRight - w);
-    };
 
     for (const r of stats.reports) {
       if (y > PH - 18) { doc.addPage(); y = M + 6; }
       doc.setFontSize(7.2); setFont(doc, 'normal'); setTxt(doc, C.charcoal);
-      doc.text(format(new Date(r.createdAt), 'MMM d'), M + 2, y);
-      doc.text(r.title, M + 22, y, { maxWidth: catLeft - 4 - (M + 22) });
+      doc.text(format(new Date(r.createdAt), 'MMM d'), dateX, y);
+      doc.text(r.title, titleX, y, { maxWidth: catX - 4 - titleX });
       doc.setFontSize(6.6); setTxt(doc, C.mid);
-      doc.text(CATEGORY_LABELS[r.category], catLeft, y, { maxWidth: catRight - catLeft });
+      doc.text(CATEGORY_LABELS[r.category], catX, y, { maxWidth: prioX - 4 - catX });
 
-      const prText = PRIORITY_LABELS[r.priority];
-      const stText = r.status.replace('-', ' ');
-      pill(doc, prText, pillXForZone(prText, prioZoneLeft, prioZoneRight), y + 2.2, PRIORITY_COLOR[r.priority]);
-      pill(doc, stText, pillXForZone(stText, statusZoneLeft, statusZoneRight), y + 2.2, STATUS_COLOR[r.status]);
+      pill(doc, PRIORITY_LABELS[r.priority], prioX, y + 2.2, PRIORITY_COLOR[r.priority]);
+      pill(doc, r.status.replace('-', ' '), statusX, y + 2.2, STATUS_COLOR[r.status]);
 
       y += 7.5;
       setDrw(doc, C.subtle); doc.setLineWidth(0.2);
