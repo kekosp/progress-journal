@@ -113,8 +113,8 @@ export async function exportMonthlyReportToPdf(
   const kpis: { label: string; value: string; sub: string; color: RGB }[] = [
     { label: 'TOTAL REPORTS', value: String(stats.total), sub: deltaSub(stats.total, prevStats.total), color: C.accent },
     { label: 'COMPLETION RATE', value: `${stats.completionRate}%`, sub: deltaSub(stats.completionRate, prevStats.completionRate, '%'), color: C.green },
-    { label: 'CRITICAL OPEN', value: String(stats.criticalOpen), sub: deltaSub(stats.criticalOpen, prevStats.criticalOpen, '', true), color: C.red },
-    { label: 'LOST TIME', value: fmtHours(stats.lostTimeHours), sub: `${stats.lostTimeHours > prevStats.lostTimeHours ? '▲' : stats.lostTimeHours < prevStats.lostTimeHours ? '▼' : '–'} vs ${fmtHours(prevStats.lostTimeHours)} last mo.`, color: C.orange },
+    { label: 'CRITICAL OPEN', value: String(stats.criticalOpen), sub: deltaSub(stats.criticalOpen, prevStats.criticalOpen), color: C.red },
+    { label: 'LOST TIME', value: fmtHours(stats.lostTimeHours), sub: `${fmtHours(prevStats.lostTimeHours)} last month`, color: C.orange },
   ];
   const cardW = (CW - 9) / 4;
   kpis.forEach((k, i) => {
@@ -148,21 +148,29 @@ export async function exportMonthlyReportToPdf(
     const barX = M + 40;
     const barMaxW = CW - 40 - 4;
     setFill(doc, C.subtle); doc.roundedRect(barX, y, barMaxW, 5, 1, 1, 'F');
-    const w = Math.max(2, (count / maxStatus) * barMaxW);
-    setFill(doc, color); doc.roundedRect(barX, y, w, 5, 1, 1, 'F');
+    if (count > 0) {
+      const w = Math.max(2, (count / maxStatus) * barMaxW);
+      setFill(doc, color); doc.roundedRect(barX, y, w, 5, 1, 1, 'F');
+    }
     y += 8;
   });
   y += 4;
 
-  // ── Category + Priority side-by-side tables ─────────────────────────────
-  const colW = (CW - 8) / 2;
-  const catX = M, prioX = M + colW + 8;
-  const tableTopY = y;
+  // ── Category + Priority side-by-side mini-bar lists ─────────────────────
+  // Each row uses label → bar → count, same visual language as Status
+  // Breakdown above, so the count is always visually tied to its label
+  // instead of floating in empty space at the far edge of the column.
+  const colW = (CW - 10) / 2;
+  const catX = M, prioX = M + colW + 10;
+  const labelW = colW * 0.42;   // room for the longest label/pill
+  const barX_cat  = catX  + labelW;
+  const barX_prio = prioX + labelW;
+  const barW = colW - labelW - 16; // leave room for the count on the right
 
   doc.setFontSize(10); setFont(doc, 'bold'); setTxt(doc, C.dark);
   doc.text('By Category', catX, y);
   doc.text('By Priority', prioX, y);
-  y += 5;
+  y += 6;
   const catRowsStartY = y, prioRowsStartY = y;
 
   let cy = catRowsStartY;
@@ -171,27 +179,38 @@ export async function exportMonthlyReportToPdf(
     doc.text('No reports this month', catX, cy + 4);
     cy += 8;
   } else {
+    const maxCat = Math.max(1, ...stats.byCategory.map(([, c]) => c));
     stats.byCategory.forEach(([cat, count]) => {
-      doc.setFontSize(7.5); setFont(doc, 'normal'); setTxt(doc, C.charcoal);
-      doc.text(CATEGORY_LABELS[cat], catX, cy + 4, { maxWidth: colW - 14 });
-      doc.setFont('helvetica', 'bold');
-      doc.text(String(count), catX + colW - 6, cy + 4, { align: 'right' });
-      cy += 6.5;
+      doc.setFontSize(7); setFont(doc, 'normal'); setTxt(doc, C.charcoal);
+      doc.text(CATEGORY_LABELS[cat], catX, cy + 4, { maxWidth: labelW - 3 });
+      setFill(doc, C.subtle); doc.roundedRect(barX_cat, cy, barW, 4, 1, 1, 'F');
+      const w = Math.max(2, (count / maxCat) * barW);
+      setFill(doc, C.accent); doc.roundedRect(barX_cat, cy, w, 4, 1, 1, 'F');
+      setFont(doc, 'bold'); setTxt(doc, C.dark);
+      doc.text(String(count), barX_cat + barW + 4, cy + 3.3);
+      cy += 7.5;
     });
   }
 
   let py = prioRowsStartY;
+  const maxPrio = Math.max(1, ...Object.values(stats.byPriority));
+  let anyPriority = false;
   (['critical', 'high', 'medium', 'low'] as ReportPriority[]).forEach(p => {
     const count = stats.byPriority[p];
     if (count === 0) return;
-    pill(doc, PRIORITY_LABELS[p], prioX, py + 5.5, PRIORITY_COLOR[p]);
-    doc.setFontSize(7.5); setFont(doc, 'bold'); setTxt(doc, C.charcoal);
-    doc.text(String(count), prioX + colW - 6, py + 4.5, { align: 'right' });
-    py += 9;
+    anyPriority = true;
+    doc.setFontSize(7); setFont(doc, 'bold'); setTxt(doc, PRIORITY_COLOR[p]);
+    doc.text(PRIORITY_LABELS[p], prioX, py + 4, { maxWidth: labelW - 3 });
+    setFill(doc, C.subtle); doc.roundedRect(barX_prio, py, barW, 4, 1, 1, 'F');
+    const w = Math.max(2, (count / maxPrio) * barW);
+    setFill(doc, PRIORITY_COLOR[p]); doc.roundedRect(barX_prio, py, w, 4, 1, 1, 'F');
+    setFont(doc, 'bold'); setTxt(doc, C.dark);
+    doc.text(String(count), barX_prio + barW + 4, py + 3.3);
+    py += 7.5;
   });
-  if (stats.total === 0) {
+  if (!anyPriority) {
     doc.setFontSize(7.5); setFont(doc, 'normal'); setTxt(doc, C.mid);
-    doc.text('—', prioX, py + 4);
+    doc.text('No reports this month', prioX, py + 4);
     py += 8;
   }
 
@@ -217,25 +236,46 @@ export async function exportMonthlyReportToPdf(
     doc.setFontSize(8); setFont(doc, 'normal'); setTxt(doc, C.mid);
     doc.text('No reports were created this month.', M, y);
   } else {
+    // Fixed right-aligned zones for the two pill columns so badges never
+    // overflow the page edge regardless of how long the text inside is.
+    const statusZoneRight = M + CW;
+    const statusZoneLeft  = statusZoneRight - 28;
+    const prioZoneRight   = statusZoneLeft - 4;
+    const prioZoneLeft    = prioZoneRight - 26;
+    const catRight        = prioZoneLeft - 4;
+    const catLeft         = M + CW * 0.55;
+
     // header row
     setFill(doc, C.subtle); doc.rect(M, y - 4, CW, 7, 'F');
     doc.setFontSize(7); setFont(doc, 'bold'); setTxt(doc, C.mid);
     doc.text('DATE', M + 2, y);
     doc.text('TITLE', M + 22, y);
-    doc.text('CATEGORY', M + CW * 0.55, y);
-    doc.text('PRIORITY', M + CW * 0.74, y);
-    doc.text('STATUS', M + CW * 0.90, y);
+    doc.text('CATEGORY', catLeft, y);
+    doc.text('PRIORITY', prioZoneLeft, y);
+    doc.text('STATUS', statusZoneLeft, y);
     y += 6;
+
+    /** Measure what width pill() will actually render at, then return a
+     *  left-x that right-aligns the badge within [zoneLeft, zoneRight]. */
+    const pillXForZone = (text: string, zoneLeft: number, zoneRight: number): number => {
+      doc.setFontSize(7.5); setFont(doc, 'bold', text);
+      const w = doc.getTextWidth(text) + 10;
+      return Math.max(zoneLeft, zoneRight - w);
+    };
 
     for (const r of stats.reports) {
       if (y > PH - 18) { doc.addPage(); y = M + 6; }
       doc.setFontSize(7.2); setFont(doc, 'normal'); setTxt(doc, C.charcoal);
       doc.text(format(new Date(r.createdAt), 'MMM d'), M + 2, y);
-      doc.text(r.title, M + 22, y, { maxWidth: CW * 0.32 });
+      doc.text(r.title, M + 22, y, { maxWidth: catLeft - 4 - (M + 22) });
       doc.setFontSize(6.6); setTxt(doc, C.mid);
-      doc.text(CATEGORY_LABELS[r.category], M + CW * 0.55, y, { maxWidth: CW * 0.18 });
-      pill(doc, PRIORITY_LABELS[r.priority], M + CW * 0.74, y + 2.2, PRIORITY_COLOR[r.priority]);
-      pill(doc, r.status.replace('-', ' '), M + CW * 0.90, y + 2.2, STATUS_COLOR[r.status]);
+      doc.text(CATEGORY_LABELS[r.category], catLeft, y, { maxWidth: catRight - catLeft });
+
+      const prText = PRIORITY_LABELS[r.priority];
+      const stText = r.status.replace('-', ' ');
+      pill(doc, prText, pillXForZone(prText, prioZoneLeft, prioZoneRight), y + 2.2, PRIORITY_COLOR[r.priority]);
+      pill(doc, stText, pillXForZone(stText, statusZoneLeft, statusZoneRight), y + 2.2, STATUS_COLOR[r.status]);
+
       y += 7.5;
       setDrw(doc, C.subtle); doc.setLineWidth(0.2);
       doc.line(M, y - 4.5, M + CW, y - 4.5);
@@ -255,10 +295,10 @@ export async function exportMonthlyReportToPdf(
   return savePdf(doc, filename);
 }
 
-function deltaSub(curr: number, prev: number, suffix = '', lowerIsBetter = false): string {
+function deltaSub(curr: number, prev: number, suffix = ''): string {
   if (prev === 0 && curr === 0) return 'No change';
   const diff = curr - prev;
-  const arrow = diff === 0 ? '–' : diff > 0 ? '▲' : '▼';
+  if (diff === 0) return 'No change';
   const sign = diff > 0 ? '+' : '';
-  return `${arrow} ${sign}${diff}${suffix} vs last mo.`;
+  return `${sign}${diff}${suffix} vs last mo.`;
 }
