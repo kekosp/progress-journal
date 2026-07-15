@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench } from 'lucide-react';
+import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench, Eye } from 'lucide-react';
 import { InventoryPhotoField } from '@/components/InventoryPhotoField';
 import { ReportImage } from '@/types/report';
 
@@ -29,6 +29,10 @@ export function InventoryList() {
   const [returningItem, setReturningItem] = useState<InventoryItem | null>(null);
   const [returnedTo, setReturnedTo] = useState('');
   const [returnPhotos, setReturnPhotos] = useState<ReportImage[]>([]);
+
+  // Detail view state
+  const [viewingItem, setViewingItem] = useState<InventoryItem | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const refresh = () => setItems(getInventoryItems());
 
