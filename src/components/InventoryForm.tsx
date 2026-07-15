@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save, Plus, Minus, ScanLine } from 'lucide-react';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
+import { InventoryPhotoField } from '@/components/InventoryPhotoField';
+import { ReportImage } from '@/types/report';
 
 interface Props {
   item?: InventoryItem;
@@ -39,6 +41,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
   const [serviceStartDate, setServiceStartDate] = useState(item?.serviceStartDate ?? '');
   const [serviceActualReturnDate, setServiceActualReturnDate] = useState(item?.serviceActualReturnDate ?? '');
   const [scanTarget, setScanTarget] = useState<number | 'all' | null>(null);
+  const [photos, setPhotos] = useState<ReportImage[]>(item?.photos ?? []);
 
   const updateQuantity = (next: number) => {
     const q = Math.max(1, Math.min(999, next));
@@ -114,6 +117,8 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
       serviceReturnDate: servicedOutside ? serviceReturnDate || undefined : undefined,
       serviceStartDate: servicedOutside ? serviceStartDate || undefined : undefined,
       serviceActualReturnDate: servicedOutside ? serviceActualReturnDate || undefined : undefined,
+      photos: photos.length > 0 ? photos : undefined,
+      returnPhotos: item?.returnPhotos,
       createdAt: item?.createdAt ?? now,
       updatedAt: now,
     };
