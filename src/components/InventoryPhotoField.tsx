@@ -12,7 +12,7 @@ interface Props {
 
 /** Compact optional-photo picker used across inventory flows. */
 export function InventoryPhotoField({ label = 'Photos (optional)', value, onChange }: Props) {
-  const { images, setImages, addImages, removeImage, triggerInput, takeNativePhoto, inputRef } =
+  const { images, addImages, removeImage, triggerInput, takeNativePhoto, inputRef } =
     useImageAttachments(value);
 
   // Propagate internal changes upward.
@@ -47,7 +47,7 @@ export function InventoryPhotoField({ label = 'Photos (optional)', value, onChan
               <img src={img.dataUrl} alt="" className="w-full h-full object-cover" />
               <button
                 type="button"
-                onClick={() => { removeImage(img.id); setImages(prev => prev.filter(i => i.id !== img.id)); }}
+                onClick={() => removeImage(img.id)}
                 className="absolute top-1 right-1 bg-background/80 rounded-full p-0.5"
                 aria-label="Remove photo"
               >
