@@ -229,7 +229,7 @@ export function InventoryList() {
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {item.status === 'in-hand' && (
-                      <Button size="sm" variant="ghost" onClick={() => { setReturningItem(item); setReturnedTo(''); }} className="h-7 w-7 p-0 text-success hover:text-success" title="Mark returned">
+                      <Button size="sm" variant="ghost" onClick={() => { setReturningItem(item); setReturnedTo(''); setReturnPhotos([]); }} className="h-7 w-7 p-0 text-success hover:text-success" title="Mark returned">
                         <RotateCcw className="w-3.5 h-3.5" />
                       </Button>
                     )}
