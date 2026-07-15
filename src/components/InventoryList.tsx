@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench } from 'lucide-react';
+import { InventoryPhotoField } from '@/components/InventoryPhotoField';
+import { ReportImage } from '@/types/report';
 
 type View = 'list' | 'create' | 'edit';
 
@@ -26,6 +28,7 @@ export function InventoryList() {
   // Return dialog state
   const [returningItem, setReturningItem] = useState<InventoryItem | null>(null);
   const [returnedTo, setReturnedTo] = useState('');
+  const [returnPhotos, setReturnPhotos] = useState<ReportImage[]>([]);
 
   const refresh = () => setItems(getInventoryItems());
 
@@ -63,10 +66,12 @@ export function InventoryList() {
       status: 'returned',
       returnedDate: new Date().toISOString().slice(0, 10),
       returnedTo: returnedTo.trim(),
+      returnPhotos: returnPhotos.length > 0 ? returnPhotos : returningItem.returnPhotos,
     });
     toast({ title: `"${returningItem.name}" marked as returned` });
     setReturningItem(null);
     setReturnedTo('');
+    setReturnPhotos([]);
     refresh();
   };
 
@@ -224,7 +229,7 @@ export function InventoryList() {
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {item.status === 'in-hand' && (
-                      <Button size="sm" variant="ghost" onClick={() => { setReturningItem(item); setReturnedTo(''); }} className="h-7 w-7 p-0 text-success hover:text-success" title="Mark returned">
+                      <Button size="sm" variant="ghost" onClick={() => { setReturningItem(item); setReturnedTo(''); setReturnPhotos([]); }} className="h-7 w-7 p-0 text-success hover:text-success" title="Mark returned">
                         <RotateCcw className="w-3.5 h-3.5" />
                       </Button>
                     )}
@@ -258,17 +263,22 @@ export function InventoryList() {
 
       {/* Return dialog – asks where the item was put back */}
       <Dialog open={!!returningItem} onOpenChange={open => { if (!open) setReturningItem(null); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Return "{returningItem?.name}"</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label className="text-sm font-medium">Where did you put it? *</Label>
             <Input
               value={returnedTo}
               onChange={e => setReturnedTo(e.target.value)}
               placeholder="e.g. Main warehouse, Shelf B2"
               autoFocus
+            />
+            <InventoryPhotoField
+              label="Photos when returned (optional)"
+              value={returnPhotos}
+              onChange={setReturnPhotos}
             />
           </div>
           <DialogFooter>

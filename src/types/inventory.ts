@@ -1,5 +1,7 @@
 export type InventoryStatus = 'in-hand' | 'returned';
 
+import { ReportImage } from '@/types/report';
+
 export interface InventoryItem {
   id: string;
   name: string;
@@ -18,6 +20,8 @@ export interface InventoryItem {
   serviceReturnDate?: string;   // ISO date – expected return from service
   serviceStartDate?: string;    // ISO date – actual date sent for service
   serviceActualReturnDate?: string; // ISO date – actual date returned from service
+  photos?: ReportImage[];       // optional photos of the item when taken
+  returnPhotos?: ReportImage[]; // optional photos when put back / returned
   createdAt: string;
   updatedAt: string;
 }
