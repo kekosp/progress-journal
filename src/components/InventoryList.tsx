@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench } from 'lucide-react';
+import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench, Eye } from 'lucide-react';
 import { InventoryPhotoField } from '@/components/InventoryPhotoField';
 import { ReportImage } from '@/types/report';
 
@@ -29,6 +29,10 @@ export function InventoryList() {
   const [returningItem, setReturningItem] = useState<InventoryItem | null>(null);
   const [returnedTo, setReturnedTo] = useState('');
   const [returnPhotos, setReturnPhotos] = useState<ReportImage[]>([]);
+
+  // Detail view state
+  const [viewingItem, setViewingItem] = useState<InventoryItem | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const refresh = () => setItems(getInventoryItems());
 
@@ -228,6 +232,9 @@ export function InventoryList() {
                     {item.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{item.notes}</p>}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    <Button size="sm" variant="ghost" onClick={() => setViewingItem(item)} className="h-7 w-7 p-0" title="View details">
+                      <Eye className="w-3.5 h-3.5" />
+                    </Button>
                     {item.status === 'in-hand' && (
                       <Button size="sm" variant="ghost" onClick={() => { setReturningItem(item); setReturnedTo(''); setReturnPhotos([]); }} className="h-7 w-7 p-0 text-success hover:text-success" title="Mark returned">
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -289,6 +296,134 @@ export function InventoryList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Detail view */}
+      <Dialog open={!!viewingItem} onOpenChange={open => { if (!open) setViewingItem(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
+              <span>{viewingItem?.name}</span>
+              {viewingItem && (
+                <Badge variant={viewingItem.status === 'in-hand' ? 'default' : 'secondary'} className="text-[10px]">
+                  {viewingItem.status === 'in-hand' ? 'In Hand' : 'Returned'}
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {viewingItem && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <DetailRow label="Quantity" value={String(viewingItem.quantity)} />
+                <DetailRow label="Taken from" value={viewingItem.takenFrom} />
+                <DetailRow label="Received" value={viewingItem.receivedDate} />
+                {viewingItem.returnByDate && <DetailRow label="Return by" value={viewingItem.returnByDate} />}
+                {viewingItem.returnedDate && <DetailRow label="Returned on" value={viewingItem.returnedDate} />}
+                {viewingItem.returnedTo && <DetailRow label="Returned to" value={viewingItem.returnedTo} />}
+              </div>
+
+              {(viewingItem.serialNumbers?.length || viewingItem.serialNumber) && (
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-1">Serial numbers</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(viewingItem.serialNumbers?.length
+                      ? viewingItem.serialNumbers
+                      : [viewingItem.serialNumber!]
+                    ).map((sn, i) => (
+                      <Badge key={i} variant="outline" className="text-[11px] font-mono">{sn}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {viewingItem.servicedOutside && (
+                <div className="rounded-lg border border-border p-3 space-y-1.5 bg-muted/30">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-warning">
+                    <Wrench className="w-3.5 h-3.5" /> Out for service
+                  </div>
+                  {viewingItem.serviceLocation && <DetailRow label="Location" value={viewingItem.serviceLocation} />}
+                  {viewingItem.serviceStartDate && <DetailRow label="Sent on" value={viewingItem.serviceStartDate} />}
+                  {viewingItem.serviceReturnDate && <DetailRow label="Expected back" value={viewingItem.serviceReturnDate} />}
+                  {viewingItem.serviceActualReturnDate && <DetailRow label="Actual return" value={viewingItem.serviceActualReturnDate} />}
+                </div>
+              )}
+
+              {viewingItem.notes && (
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-1">Notes</div>
+                  <p className="text-sm whitespace-pre-wrap">{viewingItem.notes}</p>
+                </div>
+              )}
+
+              {viewingItem.photos && viewingItem.photos.length > 0 && (
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-1.5">Photos when taken</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {viewingItem.photos.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setLightboxUrl(p.annotatedDataUrl ?? p.dataUrl)}
+                        className="aspect-square rounded-md overflow-hidden border border-border"
+                      >
+                        <img src={p.annotatedDataUrl ?? p.dataUrl} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {viewingItem.returnPhotos && viewingItem.returnPhotos.length > 0 && (
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-1.5">Photos when returned</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {viewingItem.returnPhotos.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setLightboxUrl(p.annotatedDataUrl ?? p.dataUrl)}
+                        className="aspect-square rounded-md overflow-hidden border border-border"
+                      >
+                        <img src={p.annotatedDataUrl ?? p.dataUrl} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="text-[10px] text-muted-foreground pt-1 border-t border-border">
+                Created {new Date(viewingItem.createdAt).toLocaleString()}
+                {viewingItem.updatedAt !== viewingItem.createdAt && (
+                  <> · Updated {new Date(viewingItem.updatedAt).toLocaleString()}</>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            {viewingItem && (
+              <Button variant="outline" onClick={() => { setEditingItem(viewingItem); setViewingItem(null); setView('edit'); }} className="gap-1.5">
+                <Pencil className="w-4 h-4" /> Edit
+              </Button>
+            )}
+            <Button onClick={() => setViewingItem(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Photo lightbox */}
+      <Dialog open={!!lightboxUrl} onOpenChange={open => { if (!open) setLightboxUrl(null); }}>
+        <DialogContent className="max-w-3xl p-2 bg-background">
+          {lightboxUrl && <img src={lightboxUrl} alt="" className="w-full h-auto rounded-md" />}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-sm text-foreground break-words">{value}</div>
     </div>
   );
 }
