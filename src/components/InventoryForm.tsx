@@ -219,6 +219,12 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
           <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any extra details..." rows={3} className="bg-card" maxLength={2000} />
         </div>
 
+        <InventoryPhotoField
+          label="Photos when taken (optional)"
+          value={photos}
+          onChange={setPhotos}
+        />
+
         <div className="space-y-2 rounded-lg border border-border bg-card p-3">
           <div className="flex items-center gap-2">
             <Checkbox id="servicedOutside" checked={servicedOutside} onCheckedChange={v => setServicedOutside(!!v)} />
