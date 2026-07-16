@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench, Eye, BellOff, Bell } from 'lucide-react';
+import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench, Eye, BellOff, Bell, Briefcase } from 'lucide-react';
 import { InventoryPhotoField } from '@/components/InventoryPhotoField';
 import { ReportImage } from '@/types/report';
 
@@ -90,22 +90,15 @@ export function InventoryList() {
   const isSnoozeActive = (item: InventoryItem) =>
     !!(item.snoozedUntil && new Date(item.snoozedUntil).getTime() > Date.now());
 
-  const snoozePresets: { label: string; ms: number }[] = [
-    { label: '1 hour', ms: 60 * 60 * 1000 },
-    { label: '4 hours', ms: 4 * 60 * 60 * 1000 },
-    { label: 'Until tomorrow 8am', ms: -1 },
-    { label: '3 days', ms: 3 * 24 * 60 * 60 * 1000 },
+  // Snooze options: shift the alert to the same time on a later day.
+  const snoozePresets: { label: string; addDays: number }[] = [
+    { label: 'Tomorrow, same time', addDays: 1 },
+    { label: 'Next week, same time', addDays: 7 },
   ];
 
-  const handleSnooze = (item: InventoryItem, ms: number) => {
-    let until: Date;
-    if (ms < 0) {
-      until = new Date();
-      until.setDate(until.getDate() + 1);
-      until.setHours(8, 0, 0, 0);
-    } else {
-      until = new Date(Date.now() + ms);
-    }
+  const handleSnooze = (item: InventoryItem, addDays: number) => {
+    const until = new Date();
+    until.setDate(until.getDate() + addDays);
     snoozeInventoryItem(item.id, until.toISOString());
     toast({ title: `Reminders snoozed`, description: `"${item.name}" until ${until.toLocaleString()}` });
     refresh();
@@ -124,8 +117,18 @@ export function InventoryList() {
   };
 
   const getDueBadge = (item: InventoryItem) => {
-    if (item.status === 'returned' || !item.returnByDate) return null;
+    if (item.status === 'returned') return null;
     if (isSnoozeActive(item)) return <Badge variant="outline" className="text-[10px] gap-1"><BellOff className="w-2.5 h-2.5" /> Snoozed</Badge>;
+    if (item.dailyCarry) {
+      const now = new Date();
+      const received = new Date((item.receivedDate || now.toISOString().slice(0, 10)) + 'T00:00:00');
+      const due4pm = new Date(received);
+      due4pm.setHours(16, 0, 0, 0);
+      if (now > due4pm) return <Badge variant="destructive" className="text-[10px] gap-1"><Briefcase className="w-2.5 h-2.5" /> Overdue (past 4 PM)</Badge>;
+      if (received.toDateString() === now.toDateString()) return <Badge className="bg-warning text-warning-foreground text-[10px] gap-1"><Briefcase className="w-2.5 h-2.5" /> Return by 4 PM</Badge>;
+      return <Badge variant="outline" className="text-[10px] gap-1"><Briefcase className="w-2.5 h-2.5" /> Daily carry</Badge>;
+    }
+    if (!item.returnByDate) return null;
     const due = item.returnByDate.slice(0, 10);
     if (due < today) return <Badge variant="destructive" className="text-[10px]">Overdue</Badge>;
     if (due === today) return <Badge className="bg-warning text-warning-foreground text-[10px]">Due Today</Badge>;
@@ -273,7 +276,7 @@ export function InventoryList() {
                     <Button size="sm" variant="ghost" onClick={() => setViewingItem(item)} className="h-7 w-7 p-0" title="View details">
                       <Eye className="w-3.5 h-3.5" />
                     </Button>
-                    {item.status === 'in-hand' && (item.returnByDate || (item.servicedOutside && item.serviceReturnDate && !item.serviceActualReturnDate)) && (
+                    {item.status === 'in-hand' && (item.returnByDate || item.dailyCarry || (item.servicedOutside && item.serviceReturnDate && !item.serviceActualReturnDate)) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title={isSnoozeActive(item) ? 'Snoozed — tap to change' : 'Snooze reminders'}>
@@ -282,8 +285,8 @@ export function InventoryList() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {snoozePresets.map(p => (
-                            <DropdownMenuItem key={p.label} onClick={() => handleSnooze(item, p.ms)}>
-                              Snooze {p.label}
+                            <DropdownMenuItem key={p.label} onClick={() => handleSnooze(item, p.addDays)}>
+                              {p.label}
                             </DropdownMenuItem>
                           ))}
                           {isSnoozeActive(item) && (
