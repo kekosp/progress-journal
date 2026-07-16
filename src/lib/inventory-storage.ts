@@ -125,13 +125,19 @@ function isSnoozed(item: InventoryItem): boolean {
 
 /** Count items that are in-hand and due back within the next 7 days (or overdue). */
 export function getInventoryDueCount(): number {
-  const items = getInventoryItems().filter(i => i.status === 'in-hand' && i.returnByDate);
+  const items = getInventoryItems().filter(i => i.status === 'in-hand' && (i.returnByDate || i.dailyCarry));
   const now = new Date();
   const weekFromNow = new Date();
   weekFromNow.setDate(now.getDate() + 7);
 
   return items.filter(i => {
     if (isSnoozed(i)) return false;
+    if (i.dailyCarry) {
+      const received = new Date((i.receivedDate || now.toISOString().slice(0, 10)) + 'T00:00:00');
+      const due4pm = new Date(received);
+      due4pm.setHours(16, 0, 0, 0);
+      return received.toDateString() === now.toDateString() || now > due4pm;
+    }
     const due = new Date(i.returnByDate!);
     return due <= weekFromNow;
   }).length;
@@ -146,7 +152,7 @@ export interface InventoryAlert {
 
 /** Get items due today, tomorrow, or overdue — for toast notifications. */
 export function getDueSoonInventory(): InventoryAlert[] {
-  const items = getInventoryItems().filter(i => i.status === 'in-hand' && i.returnByDate && !isSnoozed(i));
+  const items = getInventoryItems().filter(i => i.status === 'in-hand' && i.returnByDate && !i.dailyCarry && !isSnoozed(i));
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
@@ -159,6 +165,25 @@ export function getDueSoonInventory(): InventoryAlert[] {
       alerts.push({ item, isOverdue: false, isToday: true, isTomorrow: false });
     } else if (due === tomorrow) {
       alerts.push({ item, isOverdue: false, isToday: false, isTomorrow: true });
+    }
+  }
+  return alerts;
+}
+
+/** Daily-carry items (bag/tool) — due same day before 4 pm. */
+export function getDailyCarryAlerts(): InventoryAlert[] {
+  const items = getInventoryItems().filter(i => i.status === 'in-hand' && i.dailyCarry && !isSnoozed(i));
+  const alerts: InventoryAlert[] = [];
+  const now = new Date();
+  for (const item of items) {
+    // Due at 4pm today, based on the item's receivedDate
+    const received = new Date((item.receivedDate || now.toISOString().slice(0, 10)) + 'T00:00:00');
+    const due = new Date(received);
+    due.setHours(16, 0, 0, 0);
+    if (now > due) {
+      alerts.push({ item, isOverdue: true, isToday: false, isTomorrow: false });
+    } else if (received.toDateString() === now.toDateString()) {
+      alerts.push({ item, isOverdue: false, isToday: true, isTomorrow: false });
     }
   }
   return alerts;
