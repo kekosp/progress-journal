@@ -94,6 +94,35 @@ export function generateInventoryId(): string {
   return `inv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/**
+ * Snooze return reminders for an item until the given ISO timestamp.
+ * Pass null to clear an active snooze.
+ */
+export function snoozeInventoryItem(id: string, until: string | null): void {
+  const items = getInventoryItems();
+  const index = items.findIndex(i => i.id === id);
+  if (index < 0) return;
+  const item = items[index];
+  const next: InventoryItem = {
+    ...item,
+    snoozedUntil: until ?? undefined,
+    updatedAt: new Date().toISOString(),
+  };
+  items[index] = next;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  logActivity(
+    'inventory',
+    'updated',
+    id,
+    item.name,
+    until ? `Snoozed until ${new Date(until).toLocaleString()}` : 'Snooze cleared',
+  );
+}
+
+function isSnoozed(item: InventoryItem): boolean {
+  return !!(item.snoozedUntil && new Date(item.snoozedUntil).getTime() > Date.now());
+}
+
 /** Count items that are in-hand and due back within the next 7 days (or overdue). */
 export function getInventoryDueCount(): number {
   const items = getInventoryItems().filter(i => i.status === 'in-hand' && i.returnByDate);
@@ -102,6 +131,7 @@ export function getInventoryDueCount(): number {
   weekFromNow.setDate(now.getDate() + 7);
 
   return items.filter(i => {
+    if (isSnoozed(i)) return false;
     const due = new Date(i.returnByDate!);
     return due <= weekFromNow;
   }).length;
@@ -116,7 +146,7 @@ export interface InventoryAlert {
 
 /** Get items due today, tomorrow, or overdue — for toast notifications. */
 export function getDueSoonInventory(): InventoryAlert[] {
-  const items = getInventoryItems().filter(i => i.status === 'in-hand' && i.returnByDate);
+  const items = getInventoryItems().filter(i => i.status === 'in-hand' && i.returnByDate && !isSnoozed(i));
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
@@ -137,7 +167,7 @@ export function getDueSoonInventory(): InventoryAlert[] {
 /** Items currently out for service whose expected return date is today or overdue. */
 export function getDueSoonService(): InventoryAlert[] {
   const items = getInventoryItems().filter(i =>
-    i.status === 'in-hand' && i.servicedOutside && !i.serviceActualReturnDate && i.serviceReturnDate
+    i.status === 'in-hand' && i.servicedOutside && !i.serviceActualReturnDate && i.serviceReturnDate && !isSnoozed(i)
   );
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);

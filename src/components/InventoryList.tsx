@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { InventoryItem } from '@/types/inventory';
-import { getInventoryItems, saveInventoryItem, deleteInventoryItem } from '@/lib/inventory-storage';
+import { getInventoryItems, saveInventoryItem, deleteInventoryItem, snoozeInventoryItem } from '@/lib/inventory-storage';
 import { exportInventoryCsv, exportInventoryXlsx } from '@/lib/export-csv-xlsx';
 import { toast } from '@/hooks/use-toast';
 import { InventoryForm } from '@/components/InventoryForm';
@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench, Eye } from 'lucide-react';
+import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench, Eye, BellOff, Bell } from 'lucide-react';
 import { InventoryPhotoField } from '@/components/InventoryPhotoField';
 import { ReportImage } from '@/types/report';
 
@@ -87,8 +87,45 @@ export function InventoryList() {
 
   const today = new Date().toISOString().slice(0, 10);
 
+  const isSnoozeActive = (item: InventoryItem) =>
+    !!(item.snoozedUntil && new Date(item.snoozedUntil).getTime() > Date.now());
+
+  const snoozePresets: { label: string; ms: number }[] = [
+    { label: '1 hour', ms: 60 * 60 * 1000 },
+    { label: '4 hours', ms: 4 * 60 * 60 * 1000 },
+    { label: 'Until tomorrow 8am', ms: -1 },
+    { label: '3 days', ms: 3 * 24 * 60 * 60 * 1000 },
+  ];
+
+  const handleSnooze = (item: InventoryItem, ms: number) => {
+    let until: Date;
+    if (ms < 0) {
+      until = new Date();
+      until.setDate(until.getDate() + 1);
+      until.setHours(8, 0, 0, 0);
+    } else {
+      until = new Date(Date.now() + ms);
+    }
+    snoozeInventoryItem(item.id, until.toISOString());
+    toast({ title: `Reminders snoozed`, description: `"${item.name}" until ${until.toLocaleString()}` });
+    refresh();
+    if (viewingItem?.id === item.id) {
+      setViewingItem({ ...item, snoozedUntil: until.toISOString() });
+    }
+  };
+
+  const handleUnsnooze = (item: InventoryItem) => {
+    snoozeInventoryItem(item.id, null);
+    toast({ title: `Snooze cleared`, description: `"${item.name}"` });
+    refresh();
+    if (viewingItem?.id === item.id) {
+      setViewingItem({ ...item, snoozedUntil: undefined });
+    }
+  };
+
   const getDueBadge = (item: InventoryItem) => {
     if (item.status === 'returned' || !item.returnByDate) return null;
+    if (isSnoozeActive(item)) return <Badge variant="outline" className="text-[10px] gap-1"><BellOff className="w-2.5 h-2.5" /> Snoozed</Badge>;
     const due = item.returnByDate.slice(0, 10);
     if (due < today) return <Badge variant="destructive" className="text-[10px]">Overdue</Badge>;
     if (due === today) return <Badge className="bg-warning text-warning-foreground text-[10px]">Due Today</Badge>;
@@ -99,6 +136,7 @@ export function InventoryList() {
 
   const getServiceReturnBadge = (item: InventoryItem) => {
     if (!item.servicedOutside || item.serviceActualReturnDate || !item.serviceReturnDate) return null;
+    if (isSnoozeActive(item)) return null;
     const due = new Date(item.serviceReturnDate + 'T00:00:00');
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -235,6 +273,27 @@ export function InventoryList() {
                     <Button size="sm" variant="ghost" onClick={() => setViewingItem(item)} className="h-7 w-7 p-0" title="View details">
                       <Eye className="w-3.5 h-3.5" />
                     </Button>
+                    {item.status === 'in-hand' && (item.returnByDate || (item.servicedOutside && item.serviceReturnDate && !item.serviceActualReturnDate)) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title={isSnoozeActive(item) ? 'Snoozed — tap to change' : 'Snooze reminders'}>
+                            {isSnoozeActive(item) ? <BellOff className="w-3.5 h-3.5 text-warning" /> : <Bell className="w-3.5 h-3.5" />}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {snoozePresets.map(p => (
+                            <DropdownMenuItem key={p.label} onClick={() => handleSnooze(item, p.ms)}>
+                              Snooze {p.label}
+                            </DropdownMenuItem>
+                          ))}
+                          {isSnoozeActive(item) && (
+                            <DropdownMenuItem onClick={() => handleUnsnooze(item)} className="text-destructive">
+                              Clear snooze
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                     {item.status === 'in-hand' && (
                       <Button size="sm" variant="ghost" onClick={() => { setReturningItem(item); setReturnedTo(''); setReturnPhotos([]); }} className="h-7 w-7 p-0 text-success hover:text-success" title="Mark returned">
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -400,9 +459,38 @@ export function InventoryList() {
           )}
           <DialogFooter>
             {viewingItem && (
+              <>
+                {viewingItem.status === 'in-hand' && (viewingItem.returnByDate || (viewingItem.servicedOutside && viewingItem.serviceReturnDate && !viewingItem.serviceActualReturnDate)) && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="gap-1.5">
+                        {isSnoozeActive(viewingItem) ? <BellOff className="w-4 h-4 text-warning" /> : <Bell className="w-4 h-4" />}
+                        {isSnoozeActive(viewingItem) ? 'Snoozed' : 'Snooze'}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {isSnoozeActive(viewingItem) && viewingItem.snoozedUntil && (
+                        <div className="px-2 py-1.5 text-[11px] text-muted-foreground border-b border-border mb-1">
+                          Until {new Date(viewingItem.snoozedUntil).toLocaleString()}
+                        </div>
+                      )}
+                      {snoozePresets.map(p => (
+                        <DropdownMenuItem key={p.label} onClick={() => handleSnooze(viewingItem, p.ms)}>
+                          Snooze {p.label}
+                        </DropdownMenuItem>
+                      ))}
+                      {isSnoozeActive(viewingItem) && (
+                        <DropdownMenuItem onClick={() => handleUnsnooze(viewingItem)} className="text-destructive">
+                          Clear snooze
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               <Button variant="outline" onClick={() => { setEditingItem(viewingItem); setViewingItem(null); setView('edit'); }} className="gap-1.5">
                 <Pencil className="w-4 h-4" /> Edit
               </Button>
+              </>
             )}
             <Button onClick={() => setViewingItem(null)}>Close</Button>
           </DialogFooter>

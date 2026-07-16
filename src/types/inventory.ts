@@ -22,6 +22,7 @@ export interface InventoryItem {
   serviceActualReturnDate?: string; // ISO date – actual date returned from service
   photos?: ReportImage[];       // optional photos of the item when taken
   returnPhotos?: ReportImage[]; // optional photos when put back / returned
+  snoozedUntil?: string;        // ISO timestamp — reminders muted until this time
   createdAt: string;
   updatedAt: string;
 }
