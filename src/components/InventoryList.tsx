@@ -478,8 +478,8 @@ export function InventoryList() {
                         </div>
                       )}
                       {snoozePresets.map(p => (
-                        <DropdownMenuItem key={p.label} onClick={() => handleSnooze(viewingItem, p.ms)}>
-                          Snooze {p.label}
+                        <DropdownMenuItem key={p.label} onClick={() => handleSnooze(viewingItem, p.addDays)}>
+                          {p.label}
                         </DropdownMenuItem>
                       ))}
                       {isSnoozeActive(viewingItem) && (
