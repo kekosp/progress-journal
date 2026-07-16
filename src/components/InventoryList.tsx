@@ -459,9 +459,38 @@ export function InventoryList() {
           )}
           <DialogFooter>
             {viewingItem && (
+              <>
+                {viewingItem.status === 'in-hand' && (viewingItem.returnByDate || (viewingItem.servicedOutside && viewingItem.serviceReturnDate && !viewingItem.serviceActualReturnDate)) && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="gap-1.5">
+                        {isSnoozeActive(viewingItem) ? <BellOff className="w-4 h-4 text-warning" /> : <Bell className="w-4 h-4" />}
+                        {isSnoozeActive(viewingItem) ? 'Snoozed' : 'Snooze'}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {isSnoozeActive(viewingItem) && viewingItem.snoozedUntil && (
+                        <div className="px-2 py-1.5 text-[11px] text-muted-foreground border-b border-border mb-1">
+                          Until {new Date(viewingItem.snoozedUntil).toLocaleString()}
+                        </div>
+                      )}
+                      {snoozePresets.map(p => (
+                        <DropdownMenuItem key={p.label} onClick={() => handleSnooze(viewingItem, p.ms)}>
+                          Snooze {p.label}
+                        </DropdownMenuItem>
+                      ))}
+                      {isSnoozeActive(viewingItem) && (
+                        <DropdownMenuItem onClick={() => handleUnsnooze(viewingItem)} className="text-destructive">
+                          Clear snooze
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               <Button variant="outline" onClick={() => { setEditingItem(viewingItem); setViewingItem(null); setView('edit'); }} className="gap-1.5">
                 <Pencil className="w-4 h-4" /> Edit
               </Button>
+              </>
             )}
             <Button onClick={() => setViewingItem(null)}>Close</Button>
           </DialogFooter>
