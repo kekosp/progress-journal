@@ -42,6 +42,7 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
   const [serviceActualReturnDate, setServiceActualReturnDate] = useState(item?.serviceActualReturnDate ?? '');
   const [scanTarget, setScanTarget] = useState<number | 'all' | null>(null);
   const [photos, setPhotos] = useState<ReportImage[]>(item?.photos ?? []);
+  const [dailyCarry, setDailyCarry] = useState(item?.dailyCarry ?? false);
 
   const updateQuantity = (next: number) => {
     const q = Math.max(1, Math.min(999, next));
@@ -119,6 +120,8 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
       serviceActualReturnDate: servicedOutside ? serviceActualReturnDate || undefined : undefined,
       photos: photos.length > 0 ? photos : undefined,
       returnPhotos: item?.returnPhotos,
+      dailyCarry: dailyCarry || undefined,
+      snoozedUntil: item?.snoozedUntil,
       createdAt: item?.createdAt ?? now,
       updatedAt: now,
     };
@@ -224,6 +227,25 @@ export function InventoryForm({ item, onBack, onSaved }: Props) {
           value={photos}
           onChange={setPhotos}
         />
+
+        <div className="rounded-lg border border-border bg-card p-3">
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id="dailyCarry"
+              checked={dailyCarry}
+              onCheckedChange={v => setDailyCarry(!!v)}
+              className="mt-0.5"
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="dailyCarry" className="text-xs font-medium cursor-pointer">
+                Daily carry (bag/tool)
+              </Label>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Must be returned to its original place the same day before 4:00 PM.
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-2 rounded-lg border border-border bg-card p-3">
           <div className="flex items-center gap-2">
