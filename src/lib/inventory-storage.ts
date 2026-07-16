@@ -125,13 +125,19 @@ function isSnoozed(item: InventoryItem): boolean {
 
 /** Count items that are in-hand and due back within the next 7 days (or overdue). */
 export function getInventoryDueCount(): number {
-  const items = getInventoryItems().filter(i => i.status === 'in-hand' && i.returnByDate);
+  const items = getInventoryItems().filter(i => i.status === 'in-hand' && (i.returnByDate || i.dailyCarry));
   const now = new Date();
   const weekFromNow = new Date();
   weekFromNow.setDate(now.getDate() + 7);
 
   return items.filter(i => {
     if (isSnoozed(i)) return false;
+    if (i.dailyCarry) {
+      const received = new Date((i.receivedDate || now.toISOString().slice(0, 10)) + 'T00:00:00');
+      const due4pm = new Date(received);
+      due4pm.setHours(16, 0, 0, 0);
+      return received.toDateString() === now.toDateString() || now > due4pm;
+    }
     const due = new Date(i.returnByDate!);
     return due <= weekFromNow;
   }).length;
