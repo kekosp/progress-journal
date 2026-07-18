@@ -3,6 +3,7 @@ import { Report, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '@/types
 import { deleteReport } from '@/lib/storage';
 import { exportReportToPdf } from '@/lib/export-pdf';
 import { exportReportsCsv, exportReportsXlsx } from '@/lib/export-csv-xlsx';
+import { PdfExportDialog } from '@/components/PdfExportDialog';
 import { ReportComments } from '@/components/ReportComments';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -46,6 +47,7 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
 
   const openLightbox = useCallback((idx: number) => setLightboxIndex(idx), []);
   const closeLightbox = useCallback(() => setLightboxIndex(null), []);
@@ -60,23 +62,7 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
     onDeleted();
   };
 
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const result = await exportReportToPdf(report);
-      if (result.saved && (result as any).shared) {
-        toast.success('PDF ready — choose where to save it');
-      } else if (result.saved) {
-        toast.success(`PDF saved: ${result.path}`);
-      } else {
-        toast.success(`PDF downloaded: ${result.path}`);
-      }
-    } catch {
-      toast.error('Export failed');
-    } finally {
-      setExporting(false);
-    }
-  };
+  const openPdfDialog = () => setPdfDialogOpen(true);
 
   const lostTimeDisplay = formatLostTime(report);
 
@@ -99,7 +85,7 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleExport} className="gap-2">
+                  <DropdownMenuItem onClick={openPdfDialog} className="gap-2">
                     <FileText className="w-4 h-4" /> Export PDF
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => exportReportsCsv([report])} className="gap-2">
