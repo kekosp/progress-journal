@@ -189,9 +189,37 @@ async function addImage(
 }
 
 // ─── Single-report export ─────────────────────────────────────────────────────
+export interface PdfExportOptions {
+  /** IDs of images to include. Omitted = all images. */
+  selectedImageIds?: string[];
+  /** Extra rich-text notes appended to the Notes section. Supports **bold** markers. */
+  extraNotes?: string;
+  includeDescription?: boolean;
+  includeLostTime?: boolean;
+  includePhotos?: boolean;
+  includeNotes?: boolean;
+  includeSignature?: boolean;
+}
+
 export async function exportReportToPdf(
-  report: Report,
+  _report: Report,
+  options?: PdfExportOptions,
 ): Promise<{ saved: boolean; path: string; shared?: boolean }> {
+  const opts = {
+    includeDescription: true,
+    includeLostTime:    true,
+    includePhotos:      true,
+    includeNotes:       true,
+    includeSignature:   true,
+    ...options,
+  };
+  const filteredImages = opts.selectedImageIds
+    ? _report.images.filter(i => opts.selectedImageIds!.includes(i.id))
+    : _report.images;
+  const extra = (opts.extraNotes ?? '').trim();
+  const mergedNotes = [_report.notes, extra].filter(Boolean).join('\n\n');
+  const report: Report = { ..._report, images: filteredImages, notes: mergedNotes };
+
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   await registerArabicFonts(doc);
 
@@ -383,7 +411,7 @@ export async function exportReportToPdf(
   doc.addPage(); drawPageBg(); y = M + 4;
 
   // — Description ─────────────────────────────────────────────────────────────
-  if (report.description) {
+  if (opts.includeDescription && report.description) {
     section('Description');
     doc.setFontSize(10.5); setFont(doc, 'normal', report.description); setTxt(doc, C.charcoal);
     const lines: string[] = doc.splitTextToSize(report.description, CW);
@@ -392,7 +420,7 @@ export async function exportReportToPdf(
   }
 
   // — Lost Time ───────────────────────────────────────────────────────────────
-  if (totalLostTime > 0) {
+  if (opts.includeLostTime && totalLostTime > 0) {
     section('Lost Time');
     check(32);
     const BOX_H = 26;
@@ -411,7 +439,7 @@ export async function exportReportToPdf(
   }
 
   // — Photo Attachments ───────────────────────────────────────────────────────
-  if (report.images.length > 0) {
+  if (opts.includePhotos && report.images.length > 0) {
     section(`Attachments  (${report.images.length})`);
 
     const aspects = await Promise.all(
@@ -572,7 +600,7 @@ export async function exportReportToPdf(
   }
 
   // — Notes ──────────────────────────────────────────────────────────────────
-  if (report.notes) {
+  if (opts.includeNotes && report.notes) {
     section('Notes');
     setFont(doc, 'normal', report.notes);
     const noteLines: string[] = doc.splitTextToSize(report.notes, CW - 14);
@@ -593,7 +621,7 @@ export async function exportReportToPdf(
   }
 
   // — Digital Signature ───────────────────────────────────────────────────────
-  if (report.signatureDataUrl) {
+  if (opts.includeSignature && report.signatureDataUrl) {
     section('Digital Signature');
     check(52);
     const SIG_H = 46;
