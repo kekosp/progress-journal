@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Report, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '@/types/report';
 import { deleteReport } from '@/lib/storage';
-import { exportReportToPdf } from '@/lib/export-pdf';
 import { exportReportsCsv, exportReportsXlsx } from '@/lib/export-csv-xlsx';
 import { PdfExportDialog } from '@/components/PdfExportDialog';
 import { ReportComments } from '@/components/ReportComments';
@@ -45,7 +44,6 @@ function formatLostTime(report: Report): string | null {
 
 export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
 
@@ -79,7 +77,7 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
             <div className="flex gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="ghost" disabled={exporting}
+                  <Button size="sm" variant="ghost"
                     className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8 p-0" title="Export">
                     <FileDown className="w-4 h-4" />
                   </Button>
@@ -365,6 +363,7 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
 
         <div className="h-6" />
       </div>
+      <PdfExportDialog report={report} open={pdfDialogOpen} onOpenChange={setPdfDialogOpen} />
     </div>
   );
 }
