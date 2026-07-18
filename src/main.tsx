@@ -16,4 +16,14 @@ import "@fontsource/epilogue/600.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/500.css";
 
+// Apply saved theme before first paint so the LockScreen/AdminGate render in the correct palette
+(() => {
+  try {
+    const saved = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = saved ? saved === 'dark' : prefersDark;
+    document.documentElement.classList.toggle('dark', isDark);
+  } catch { /* ignore */ }
+})();
+
 createRoot(document.getElementById("root")!).render(<App />);
