@@ -189,9 +189,37 @@ async function addImage(
 }
 
 // ─── Single-report export ─────────────────────────────────────────────────────
+export interface PdfExportOptions {
+  /** IDs of images to include. Omitted = all images. */
+  selectedImageIds?: string[];
+  /** Extra rich-text notes appended to the Notes section. Supports **bold** markers. */
+  extraNotes?: string;
+  includeDescription?: boolean;
+  includeLostTime?: boolean;
+  includePhotos?: boolean;
+  includeNotes?: boolean;
+  includeSignature?: boolean;
+}
+
 export async function exportReportToPdf(
-  report: Report,
+  _report: Report,
+  options?: PdfExportOptions,
 ): Promise<{ saved: boolean; path: string; shared?: boolean }> {
+  const opts = {
+    includeDescription: true,
+    includeLostTime:    true,
+    includePhotos:      true,
+    includeNotes:       true,
+    includeSignature:   true,
+    ...options,
+  };
+  const filteredImages = opts.selectedImageIds
+    ? _report.images.filter(i => opts.selectedImageIds!.includes(i.id))
+    : _report.images;
+  const extra = (opts.extraNotes ?? '').trim();
+  const mergedNotes = [_report.notes, extra].filter(Boolean).join('\n\n');
+  const report: Report = { ..._report, images: filteredImages, notes: mergedNotes };
+
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   await registerArabicFonts(doc);
 
