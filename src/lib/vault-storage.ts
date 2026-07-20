@@ -11,6 +11,7 @@ import {
   saltFromB64,
   saltToB64,
 } from './vault-crypto';
+import type { ReportImage } from '@/types/report';
 
 const VAULT_META_KEY = 'vault-meta';   // { salt, verifier }
 const VAULT_DATA_KEY = 'vault-data';   // CipherBlob of CredentialEntry[]
@@ -22,6 +23,7 @@ export interface CredentialEntry {
   password: string;
   url?: string;
   notes?: string;
+  images?: ReportImage[];
   createdAt: string;
   updatedAt: string;
 }

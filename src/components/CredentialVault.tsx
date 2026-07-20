@@ -23,6 +23,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
+import { InventoryPhotoField } from '@/components/InventoryPhotoField';
+import { Dialog as ImgDialog, DialogContent as ImgDialogContent } from '@/components/ui/dialog';
 import {
   KeyRound, Lock, Eye, EyeOff, Plus, Pencil, Trash2, Copy, ShieldAlert,
   Search, RotateCw, AlertCircle, Settings,
@@ -56,6 +58,9 @@ export function CredentialVault() {
 
   // Revealed password ids
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+
+  // Image preview lightbox
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // ── Lock helpers ────────────────────────────────────────────────────────────
   const lock = useCallback(() => {
@@ -138,7 +143,7 @@ export function CredentialVault() {
   // ── CRUD ────────────────────────────────────────────────────────────────────
   function openCreate() {
     setEditing({
-      id: '', label: '', username: '', password: '', url: '', notes: '',
+      id: '', label: '', username: '', password: '', url: '', notes: '', images: [],
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     });
     setEditorOpen(true);
@@ -425,11 +430,35 @@ export function CredentialVault() {
                     {entry.notes}
                   </div>
                 )}
+                {entry.images && entry.images.length > 0 && (
+                  <div className="flex gap-1.5 pt-1.5 border-t border-border/50 overflow-x-auto">
+                    {entry.images.map(img => {
+                      const src = img.annotatedDataUrl ?? img.dataUrl;
+                      return (
+                        <button
+                          key={img.id}
+                          type="button"
+                          onClick={() => setPreviewUrl(src)}
+                          className="shrink-0 w-12 h-12 rounded-md overflow-hidden border border-border bg-muted"
+                          aria-label="View image"
+                        >
+                          <img src={src} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
+      <ImgDialog open={!!previewUrl} onOpenChange={o => { if (!o) setPreviewUrl(null); }}>
+        <ImgDialogContent className="max-w-3xl p-2 bg-background">
+          {previewUrl && <img src={previewUrl} alt="" className="w-full h-auto rounded-md" />}
+        </ImgDialogContent>
+      </ImgDialog>
 
       {/* Entry editor */}
       <Dialog open={editorOpen} onOpenChange={(o) => { if (!o) { setEditorOpen(false); setEditing(null); } }}>
@@ -472,6 +501,11 @@ export function CredentialVault() {
                 <Label className="text-xs">Notes (optional)</Label>
                 <Textarea value={editing.notes ?? ''} onChange={e => setEditing({ ...editing, notes: e.target.value })} maxLength={500} rows={2} />
               </div>
+              <InventoryPhotoField
+                label="Images (optional)"
+                value={editing.images ?? []}
+                onChange={imgs => setEditing(prev => prev ? { ...prev, images: imgs } : prev)}
+              />
             </div>
           )}
           <DialogFooter className="gap-2">
