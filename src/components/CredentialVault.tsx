@@ -430,11 +430,35 @@ export function CredentialVault() {
                     {entry.notes}
                   </div>
                 )}
+                {entry.images && entry.images.length > 0 && (
+                  <div className="flex gap-1.5 pt-1.5 border-t border-border/50 overflow-x-auto">
+                    {entry.images.map(img => {
+                      const src = img.annotatedDataUrl ?? img.dataUrl;
+                      return (
+                        <button
+                          key={img.id}
+                          type="button"
+                          onClick={() => setPreviewUrl(src)}
+                          className="shrink-0 w-12 h-12 rounded-md overflow-hidden border border-border bg-muted"
+                          aria-label="View image"
+                        >
+                          <img src={src} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
+      <ImgDialog open={!!previewUrl} onOpenChange={o => { if (!o) setPreviewUrl(null); }}>
+        <ImgDialogContent className="max-w-3xl p-2 bg-background">
+          {previewUrl && <img src={previewUrl} alt="" className="w-full h-auto rounded-md" />}
+        </ImgDialogContent>
+      </ImgDialog>
 
       {/* Entry editor */}
       <Dialog open={editorOpen} onOpenChange={(o) => { if (!o) { setEditorOpen(false); setEditing(null); } }}>
