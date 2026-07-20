@@ -477,6 +477,11 @@ export function CredentialVault() {
                 <Label className="text-xs">Notes (optional)</Label>
                 <Textarea value={editing.notes ?? ''} onChange={e => setEditing({ ...editing, notes: e.target.value })} maxLength={500} rows={2} />
               </div>
+              <InventoryPhotoField
+                label="Images (optional)"
+                value={editing.images ?? []}
+                onChange={imgs => setEditing(prev => prev ? { ...prev, images: imgs } : prev)}
+              />
             </div>
           )}
           <DialogFooter className="gap-2">
