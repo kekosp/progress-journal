@@ -23,6 +23,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
+import { InventoryPhotoField } from '@/components/InventoryPhotoField';
+import { Dialog as ImgDialog, DialogContent as ImgDialogContent } from '@/components/ui/dialog';
 import {
   KeyRound, Lock, Eye, EyeOff, Plus, Pencil, Trash2, Copy, ShieldAlert,
   Search, RotateCw, AlertCircle, Settings,
@@ -56,6 +58,9 @@ export function CredentialVault() {
 
   // Revealed password ids
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+
+  // Image preview lightbox
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // ── Lock helpers ────────────────────────────────────────────────────────────
   const lock = useCallback(() => {
@@ -138,7 +143,7 @@ export function CredentialVault() {
   // ── CRUD ────────────────────────────────────────────────────────────────────
   function openCreate() {
     setEditing({
-      id: '', label: '', username: '', password: '', url: '', notes: '',
+      id: '', label: '', username: '', password: '', url: '', notes: '', images: [],
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     });
     setEditorOpen(true);
