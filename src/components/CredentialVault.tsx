@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
 import { InventoryPhotoField } from '@/components/InventoryPhotoField';
-import { Dialog as ImgDialog, DialogContent as ImgDialogContent } from '@/components/ui/dialog';
+import { ImageLightbox } from '@/components/ImageLightbox';
 import {
   KeyRound, Lock, Eye, EyeOff, Plus, Pencil, Trash2, Copy, ShieldAlert,
   Search, RotateCw, AlertCircle, Settings,
@@ -454,11 +454,7 @@ export function CredentialVault() {
         })}
       </div>
 
-      <ImgDialog open={!!previewUrl} onOpenChange={o => { if (!o) setPreviewUrl(null); }}>
-        <ImgDialogContent className="max-w-3xl p-2 bg-background">
-          {previewUrl && <img src={previewUrl} alt="" className="w-full h-auto rounded-md" />}
-        </ImgDialogContent>
-      </ImgDialog>
+      <ImageLightbox src={previewUrl} onClose={() => setPreviewUrl(null)} />
 
       {/* Entry editor */}
       <Dialog open={editorOpen} onOpenChange={(o) => { if (!o) { setEditorOpen(false); setEditing(null); } }}>

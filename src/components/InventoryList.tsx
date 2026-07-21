@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, Search, Package, MapPin, CalendarClock, RotateCcw, Pencil, Trash2, FileDown, FileText, FileSpreadsheet, Wrench, Eye, BellOff, Bell, Briefcase } from 'lucide-react';
 import { InventoryPhotoField } from '@/components/InventoryPhotoField';
 import { ReportImage } from '@/types/report';
+import { ImageLightbox } from '@/components/ImageLightbox';
 
 type View = 'list' | 'create' | 'edit';
 
@@ -501,11 +502,7 @@ export function InventoryList() {
       </Dialog>
 
       {/* Photo lightbox */}
-      <Dialog open={!!lightboxUrl} onOpenChange={open => { if (!open) setLightboxUrl(null); }}>
-        <DialogContent className="max-w-3xl p-2 bg-background">
-          {lightboxUrl && <img src={lightboxUrl} alt="" className="w-full h-auto rounded-md" />}
-        </DialogContent>
-      </Dialog>
+      <ImageLightbox src={lightboxUrl} onClose={() => setLightboxUrl(null)} />
     </div>
   );
 }
