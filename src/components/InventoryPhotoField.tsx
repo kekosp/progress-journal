@@ -3,7 +3,7 @@ import { useImageAttachments } from '@/hooks/use-image-attachments';
 import { Button } from '@/components/ui/button';
 import { Camera, ImagePlus, X, RefreshCw, Maximize2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { ImageLightbox } from '@/components/ImageLightbox';
 
 interface Props {
   label?: string;
@@ -145,11 +145,7 @@ export function InventoryPhotoField({ label = 'Photos (optional)', value, onChan
         }}
       />
 
-      <Dialog open={!!previewUrl} onOpenChange={open => { if (!open) setPreviewUrl(null); }}>
-        <DialogContent className="max-w-3xl p-2 bg-background">
-          {previewUrl && <img src={previewUrl} alt="" className="w-full h-auto rounded-md" />}
-        </DialogContent>
-      </Dialog>
+      <ImageLightbox src={previewUrl} onClose={() => setPreviewUrl(null)} />
     </div>
   );
 }
