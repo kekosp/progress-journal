@@ -7,6 +7,7 @@ import { ReportComments } from '@/components/ReportComments';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ArrowLeft, Edit2, Trash2, FileDown, MapPin, FolderOpen, PenTool, Clock, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, X, ZoomIn, ArrowLeftRight } from 'lucide-react';
+import { ImageLightbox } from '@/components/ImageLightbox';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -285,50 +286,43 @@ export function ReportDetail({ report, onBack, onEdit, onDeleted }: Props) {
           );
         })()}
 
-        {/* Lightbox */}
-        {lightboxIndex !== null && (
-          <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center" onClick={closeLightbox}>
-            <button onClick={closeLightbox} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20">
-              <X className="w-5 h-5" />
-            </button>
-            <p className="absolute top-5 left-1/2 -translate-x-1/2 text-white/70 text-xs font-medium">
-              {lightboxIndex + 1} / {report.images.length}
-              {report.images[lightboxIndex].tag && (
-                <span className={`ml-2 font-bold uppercase ${report.images[lightboxIndex].tag === 'before' ? 'text-blue-400' : 'text-green-400'}`}>
-                  {report.images[lightboxIndex].tag}
-                </span>
-              )}
-            </p>
-            <div className="max-w-full max-h-[80vh] px-12 flex items-center justify-center" onClick={e => e.stopPropagation()}>
-              <img src={report.images[lightboxIndex].annotatedDataUrl || report.images[lightboxIndex].dataUrl}
-                alt={report.images[lightboxIndex].caption || ''}
-                className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl" />
-            </div>
-            {report.images[lightboxIndex].caption && (
-              <p className="absolute bottom-16 left-0 right-0 text-center text-white/80 text-sm px-8">
-                {report.images[lightboxIndex].caption}
-              </p>
-            )}
-            {report.images.length > 1 && (
-              <>
-                <button onClick={e => { e.stopPropagation(); prevPhoto(); }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20">
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button onClick={e => { e.stopPropagation(); nextPhoto(); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20">
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-                <div className="absolute bottom-6 flex gap-1.5">
-                  {report.images.map((_, i) => (
-                    <button key={i} onClick={e => { e.stopPropagation(); setLightboxIndex(i); }}
-                      className={`w-1.5 h-1.5 rounded-full transition-all ${i === lightboxIndex ? 'bg-white scale-125' : 'bg-white/40'}`} />
-                  ))}
+        {/* Lightbox with zoom, fullscreen, and secure download-disabled mode */}
+        {lightboxIndex !== null && (() => {
+          const cur = report.images[lightboxIndex];
+          const caption = [
+            `${lightboxIndex + 1} / ${report.images.length}`,
+            cur.tag ? cur.tag.toUpperCase() : '',
+            cur.caption ?? '',
+          ].filter(Boolean).join(' • ');
+          return (
+            <>
+              <ImageLightbox
+                src={cur.annotatedDataUrl || cur.dataUrl}
+                alt={cur.caption || ''}
+                caption={caption}
+                onClose={closeLightbox}
+              />
+              {report.images.length > 1 && (
+                <div className="fixed inset-0 z-[61] pointer-events-none">
+                  <button
+                    onClick={prevPhoto}
+                    className="pointer-events-auto absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+                    aria-label="Previous photo"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={nextPhoto}
+                    className="pointer-events-auto absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+                    aria-label="Next photo"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
                 </div>
-              </>
-            )}
-          </div>
-        )}
+              )}
+            </>
+          );
+        })()}
 
         {/* Signature */}
         {report.signatureDataUrl && (
