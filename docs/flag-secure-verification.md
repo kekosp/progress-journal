@@ -4,10 +4,18 @@ Date: 2026-08-16
 
 ## What was checked
 
-`android/app/src/main/java/app/lovable/k541b7c83680c47fe8dfc25833fe24b42/MainActivity.java`
-calls `getWindow().setFlags(FLAG_SECURE, FLAG_SECURE)` in `onCreate`, which is the
-correct, app-wide way to block screenshots, screen recording and recent-apps
-thumbnails for a single-Activity Capacitor app.
+FLAG_SECURE is applied process-wide by
+`android/app/src/main/java/app/lovable/k541b7c83680c47fe8dfc25833fe24b42/SecureApplication.java`,
+registered as `android:name=".SecureApplication"` on `<application>`. It uses
+`registerActivityLifecycleCallbacks` to set
+`WindowManager.LayoutParams.FLAG_SECURE` on **every** activity at
+created/started/resumed — covering `MainActivity` and any plugin-launched
+activity (camera, file picker, barcode scanner, browser/OAuth, crop dialogs).
+`MainActivity` re-asserts the flag as a fallback.
+
+Because the project has a single `main` source set and a single
+`AndroidManifest.xml` (no `src/debug` or `src/release` overrides, no product
+flavors in `app/build.gradle`), this applies to **all build variants**.
 
 ## Static verification of the release APK in the repo (`app-release.apk`)
 
