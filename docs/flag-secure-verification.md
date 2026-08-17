@@ -101,3 +101,10 @@ Run the same check locally:
 cd android && ./gradlew assemble && cd ..
 ./scripts/verify-flag-secure.sh android/app/build/outputs/apk/**/*.apk
 ```
+
+## Manual test plan
+
+See [`flag-secure-test-plan.md`](./flag-secure-test-plan.md) for the explicit
+device test plan covering in-app screens, plugin/intent-launched screens
+(camera, barcode, pickers, share sheet), and deep-link/cold-start entry points
+in release builds.
