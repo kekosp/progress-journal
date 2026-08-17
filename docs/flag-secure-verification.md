@@ -82,3 +82,22 @@ Record pass/fail per step, plus device model and Android version.
   not protected and cannot be.
 - It does not stop a second camera photographing the screen.
 - Some rooted devices / custom ROMs can bypass FLAG_SECURE.
+## Automated CI enforcement
+
+`.github/workflows/android-flag-secure.yml` runs on every push to `main`, every
+pull request, and every release. It builds **all** Android variants
+(`./gradlew assemble`) and runs `scripts/verify-flag-secure.sh` against each
+produced APK. The scan fails the build unless every APK contains:
+
+1. `android:name=...SecureApplication` in the packaged manifest (`aapt2 dump xmltree`)
+2. the `SecureApplication` class in `classes*.dex` (`dexdump -d`)
+3. a call to `Landroid/view/Window;->setFlags`
+4. the `FLAG_SECURE` constant `0x2000`
+5. `registerActivityLifecycleCallbacks` (proves process-wide, not MainActivity-only)
+
+Run the same check locally:
+
+```bash
+cd android && ./gradlew assemble && cd ..
+./scripts/verify-flag-secure.sh android/app/build/outputs/apk/**/*.apk
+```
