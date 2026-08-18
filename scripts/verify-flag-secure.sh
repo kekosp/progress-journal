@@ -61,7 +61,10 @@ for apk in "$@"; do
   fi
 
   # ---- 3. FLAG_SECURE (0x2000) must be passed to Window.setFlags ---------
-  if grep -q "Landroid/view/Window;->setFlags" "$dump"; then
+  # Note: dexdump emits method refs as "Lclass;.method:(sig)ret" (dot before
+  # the name, colon before the signature) — NOT smali/baksmali's "->" arrow
+  # syntax. Match both separator styles defensively.
+  if grep -Eq "Landroid/view/Window;.{1,2}setFlags" "$dump"; then
     echo "  OK   Window.setFlags invoked"
   else
     echo "  FAIL no call to Window.setFlags found"
