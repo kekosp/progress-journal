@@ -39,6 +39,15 @@ export function isVaultSetup(): boolean {
   return !!localStorage.getItem(VAULT_META_KEY);
 }
 
+/**
+ * True when an encrypted data blob exists. Used to block re-initialization
+ * attacks where `vault-meta` is deleted to force the setup screen — that would
+ * silently overwrite (destroy) the existing encrypted credentials.
+ */
+export function hasVaultData(): boolean {
+  return !!localStorage.getItem(VAULT_DATA_KEY);
+}
+
 function getMeta(): VaultMeta | null {
   const raw = localStorage.getItem(VAULT_META_KEY);
   if (!raw) return null;
@@ -50,6 +59,11 @@ function getMeta(): VaultMeta | null {
  * encrypts a verifier blob, and writes an empty encrypted entry list.
  */
 export async function setupVault(masterPassword: string): Promise<CryptoKey> {
+  if (localStorage.getItem(VAULT_DATA_KEY)) {
+    throw new Error(
+      'An encrypted vault already exists on this device. Creating a new vault would destroy it. Restore the original master password, or use "Reset vault" to delete the existing data first.'
+    );
+  }
   const salt = newSalt();
   const key = await deriveKey(masterPassword, salt);
   const verifier = await encryptJson(key, VERIFIER_PLAINTEXT);
