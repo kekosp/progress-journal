@@ -1,0 +1,95 @@
+name: Build Android APK
+
+# Builds an installable APK entirely in the cloud — no PC required.
+# Run it from GitHub: Actions -> "Build Android APK" -> Run workflow.
+# The APK is attached to the run as an artifact you can download on your phone.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Version name (e.g. 6.3.1)'
+        required: true
+        default: '6.3.1'
+      version_code:
+        description: 'Version code (integer, must increase each build)'
+        required: true
+        default: '60301'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set version ${{ inputs.version_name }} (${{ inputs.version_code }})
+        run: |
+          sed -i "s/versionCode .*/versionCode ${{ inputs.version_code }}/" android/app/build.gradle
+          sed -i "s/versionName \".*\"/versionName \"${{ inputs.version_name }}\"/" android/app/build.gradle
+          grep -E 'versionCode|versionName' android/app/build.gradle
+
+      - name: Build web assets
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Create signing keystore
+        working-directory: android
+        run: |
+          keytool -genkeypair -v \
+            -keystore release.keystore \
+            -alias reports \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD || 'reports-ci' }}" \
+            -keypass "${{ secrets.KEYSTORE_PASSWORD || 'reports-ci' }}" \
+            -dname "CN=Reports, OU=Mobile, O=Reports, L=Cairo, S=Cairo, C=EG"
+
+      - name: Build signed release APK
+        working-directory: android
+        env:
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD || 'reports-ci' }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$PWD/release.keystore \
+            -Pandroid.injected.signing.store.password=$KS_PASS \
+            -Pandroid.injected.signing.key.alias=reports \
+            -Pandroid.injected.signing.key.password=$KS_PASS
+
+      - name: Rename APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/app-release.apk \
+             "out/reports-v${{ inputs.version_name }}.apk"
+          ls -lh out
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-v${{ inputs.version_name }}-apk
+          path: out/*.apk
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version_name }}
+          name: Reports v${{ inputs.version_name }}
+          files: out/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
