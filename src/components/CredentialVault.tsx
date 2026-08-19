@@ -413,6 +413,7 @@ export function CredentialVault() {
                 className="pr-10 h-12"
                 autoFocus
                 maxLength={128}
+                disabled={isLocked}
               />
               <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -423,8 +424,8 @@ export function CredentialVault() {
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />{err}
               </div>
             )}
-            <Button type="submit" className="w-full h-12" disabled={busy || !pw}>
-              {busy ? 'Unlocking…' : 'Unlock'}
+            <Button type="submit" className="w-full h-12" disabled={busy || !pw || isLocked}>
+              {isLocked ? `Locked — ${lockTimer}s` : busy ? 'Unlocking…' : 'Unlock'}
             </Button>
           </form>
         </div>
