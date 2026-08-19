@@ -131,6 +131,19 @@ export function CredentialVault() {
   }, [key, lock]);
 
   // ── Setup / unlock submit ───────────────────────────────────────────────────
+  // Countdown ticker while locked out
+  useEffect(() => {
+    if (!lockedUntil) return;
+    const tick = () => {
+      const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (remaining <= 0) { setLockTimer(0); setLockedUntil(null); setErr(''); }
+      else setLockTimer(remaining);
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [lockedUntil]);
+
   async function handleSetup(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
@@ -142,6 +155,7 @@ export function CredentialVault() {
       setKey(k);
       setEntries([]);
       setPw(''); setPw2('');
+      clearLockout();
       setMode('unlocked');
       toast({ title: '✅ Vault created', description: 'Your encrypted vault is ready.' });
     } catch (e: any) {
@@ -152,14 +166,38 @@ export function CredentialVault() {
   async function handleUnlock(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
+    if (isLocked) {
+      setErr(`Too many attempts. Wait ${lockTimer} seconds.`);
+      return;
+    }
     setBusy(true);
     try {
       const k = await unlockVault(pw);
-      if (!k) { setErr('Incorrect master password.'); return; }
+      if (!k) {
+        const next = attempts + 1;
+        setAttempts(next);
+        setPw('');
+        if (next % MAX_ATTEMPTS === 0) {
+          const multiplier = Math.pow(2, Math.floor(next / MAX_ATTEMPTS) - 1);
+          const seconds = Math.min(BASE_LOCKOUT_SECONDS * multiplier, MAX_LOCKOUT_SECONDS);
+          const until = Date.now() + seconds * 1000;
+          setLockedUntil(until);
+          writeLockout({ attempts: next, lockedUntil: until });
+          setErr(`Too many attempts. Wait ${seconds} seconds.`);
+        } else {
+          writeLockout({ attempts: next, lockedUntil: null });
+          const left = MAX_ATTEMPTS - (next % MAX_ATTEMPTS);
+          setErr(`Incorrect master password. ${left} attempt${left !== 1 ? 's' : ''} left.`);
+        }
+        return;
+      }
       const list = await readEntries(k);
       setKey(k);
       setEntries(list);
       setPw('');
+      setAttempts(0);
+      setLockedUntil(null);
+      clearLockout();
       setMode('unlocked');
     } catch {
       setErr('Failed to unlock vault.');
@@ -258,6 +296,9 @@ export function CredentialVault() {
 
   function handleDestroy() {
     destroyVault();
+    clearLockout();
+    setAttempts(0);
+    setLockedUntil(null);
     setDestroyConfirm(false);
     setSettingsOpen(false);
     lock();
