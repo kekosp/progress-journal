@@ -307,6 +307,7 @@ export function CredentialVault() {
 
   // ── Render: Setup ───────────────────────────────────────────────────────────
   if (mode === 'setup') {
+    const orphaned = hasVaultData();
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 pb-24">
         <div className="w-full max-w-sm space-y-5">
@@ -319,6 +320,26 @@ export function CredentialVault() {
               All credentials are encrypted with AES-256 using a key derived from this master password. The password is never stored — if you forget it, your vault cannot be recovered.
             </p>
           </div>
+          {orphaned && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+              <div className="flex items-start gap-2 text-destructive text-xs">
+                <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  An encrypted vault already exists on this device, but its settings are missing or damaged.
+                  Creating a new vault is blocked so the existing encrypted data is not destroyed.
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="w-full"
+                onClick={() => setDestroyConfirm(true)}
+              >
+                Erase existing vault data
+              </Button>
+            </div>
+          )}
           <form onSubmit={handleSetup} className="space-y-3">
             <div className="relative">
               <Input
@@ -347,11 +368,25 @@ export function CredentialVault() {
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />{err}
               </div>
             )}
-            <Button type="submit" className="w-full h-12" disabled={busy || !pw || !pw2}>
+            <Button type="submit" className="w-full h-12" disabled={busy || !pw || !pw2 || orphaned}>
               {busy ? 'Creating…' : 'Create Vault'}
             </Button>
           </form>
         </div>
+        <AlertDialog open={destroyConfirm} onOpenChange={setDestroyConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Erase existing vault data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently deletes the encrypted credentials stored on this device. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDestroy}>Erase</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
