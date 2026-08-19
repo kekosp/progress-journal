@@ -3,6 +3,7 @@ import { App as CapApp } from '@capacitor/app';
 import {
   CredentialEntry,
   isVaultSetup,
+  hasVaultData,
   setupVault,
   unlockVault,
   readEntries,
@@ -33,6 +34,24 @@ import {
 const AUTO_LOCK_MS = 2 * 60 * 1000; // 2 minutes of inactivity
 const MIN_PW_LEN = 8;
 
+// ── Brute-force protection (mirrors AdminGate) ────────────────────────────────
+const VAULT_LOCKOUT_KEY = 'vault-lock-attempts';
+const MAX_ATTEMPTS = 5;
+const BASE_LOCKOUT_SECONDS = 30;
+const MAX_LOCKOUT_SECONDS = 900;
+
+interface LockoutState { attempts: number; lockedUntil: number | null; }
+
+function readLockout(): LockoutState {
+  try {
+    const raw = localStorage.getItem(VAULT_LOCKOUT_KEY);
+    if (raw) return JSON.parse(raw) as LockoutState;
+  } catch { /* ignore */ }
+  return { attempts: 0, lockedUntil: null };
+}
+function writeLockout(s: LockoutState) { localStorage.setItem(VAULT_LOCKOUT_KEY, JSON.stringify(s)); }
+function clearLockout() { localStorage.removeItem(VAULT_LOCKOUT_KEY); }
+
 type Mode = 'setup' | 'unlock' | 'unlocked';
 
 export function CredentialVault() {
@@ -47,6 +66,13 @@ export function CredentialVault() {
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Brute-force lockout state
+  const initialLock = readLockout();
+  const [attempts, setAttempts] = useState(initialLock.attempts);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(initialLock.lockedUntil);
+  const [lockTimer, setLockTimer] = useState(0);
+  const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
 
   // Entry editor
   const [editorOpen, setEditorOpen] = useState(false);
@@ -105,6 +131,19 @@ export function CredentialVault() {
   }, [key, lock]);
 
   // ── Setup / unlock submit ───────────────────────────────────────────────────
+  // Countdown ticker while locked out
+  useEffect(() => {
+    if (!lockedUntil) return;
+    const tick = () => {
+      const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (remaining <= 0) { setLockTimer(0); setLockedUntil(null); setErr(''); }
+      else setLockTimer(remaining);
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [lockedUntil]);
+
   async function handleSetup(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
@@ -116,6 +155,7 @@ export function CredentialVault() {
       setKey(k);
       setEntries([]);
       setPw(''); setPw2('');
+      clearLockout();
       setMode('unlocked');
       toast({ title: '✅ Vault created', description: 'Your encrypted vault is ready.' });
     } catch (e: any) {
@@ -126,14 +166,38 @@ export function CredentialVault() {
   async function handleUnlock(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
+    if (isLocked) {
+      setErr(`Too many attempts. Wait ${lockTimer} seconds.`);
+      return;
+    }
     setBusy(true);
     try {
       const k = await unlockVault(pw);
-      if (!k) { setErr('Incorrect master password.'); return; }
+      if (!k) {
+        const next = attempts + 1;
+        setAttempts(next);
+        setPw('');
+        if (next % MAX_ATTEMPTS === 0) {
+          const multiplier = Math.pow(2, Math.floor(next / MAX_ATTEMPTS) - 1);
+          const seconds = Math.min(BASE_LOCKOUT_SECONDS * multiplier, MAX_LOCKOUT_SECONDS);
+          const until = Date.now() + seconds * 1000;
+          setLockedUntil(until);
+          writeLockout({ attempts: next, lockedUntil: until });
+          setErr(`Too many attempts. Wait ${seconds} seconds.`);
+        } else {
+          writeLockout({ attempts: next, lockedUntil: null });
+          const left = MAX_ATTEMPTS - (next % MAX_ATTEMPTS);
+          setErr(`Incorrect master password. ${left} attempt${left !== 1 ? 's' : ''} left.`);
+        }
+        return;
+      }
       const list = await readEntries(k);
       setKey(k);
       setEntries(list);
       setPw('');
+      setAttempts(0);
+      setLockedUntil(null);
+      clearLockout();
       setMode('unlocked');
     } catch {
       setErr('Failed to unlock vault.');
@@ -232,6 +296,9 @@ export function CredentialVault() {
 
   function handleDestroy() {
     destroyVault();
+    clearLockout();
+    setAttempts(0);
+    setLockedUntil(null);
     setDestroyConfirm(false);
     setSettingsOpen(false);
     lock();
@@ -240,6 +307,7 @@ export function CredentialVault() {
 
   // ── Render: Setup ───────────────────────────────────────────────────────────
   if (mode === 'setup') {
+    const orphaned = hasVaultData();
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 pb-24">
         <div className="w-full max-w-sm space-y-5">
@@ -252,6 +320,26 @@ export function CredentialVault() {
               All credentials are encrypted with AES-256 using a key derived from this master password. The password is never stored — if you forget it, your vault cannot be recovered.
             </p>
           </div>
+          {orphaned && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+              <div className="flex items-start gap-2 text-destructive text-xs">
+                <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  An encrypted vault already exists on this device, but its settings are missing or damaged.
+                  Creating a new vault is blocked so the existing encrypted data is not destroyed.
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="w-full"
+                onClick={() => setDestroyConfirm(true)}
+              >
+                Erase existing vault data
+              </Button>
+            </div>
+          )}
           <form onSubmit={handleSetup} className="space-y-3">
             <div className="relative">
               <Input
@@ -280,11 +368,25 @@ export function CredentialVault() {
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />{err}
               </div>
             )}
-            <Button type="submit" className="w-full h-12" disabled={busy || !pw || !pw2}>
+            <Button type="submit" className="w-full h-12" disabled={busy || !pw || !pw2 || orphaned}>
               {busy ? 'Creating…' : 'Create Vault'}
             </Button>
           </form>
         </div>
+        <AlertDialog open={destroyConfirm} onOpenChange={setDestroyConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Erase existing vault data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently deletes the encrypted credentials stored on this device. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDestroy}>Erase</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
@@ -311,6 +413,7 @@ export function CredentialVault() {
                 className="pr-10 h-12"
                 autoFocus
                 maxLength={128}
+                disabled={isLocked}
               />
               <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -321,8 +424,8 @@ export function CredentialVault() {
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />{err}
               </div>
             )}
-            <Button type="submit" className="w-full h-12" disabled={busy || !pw}>
-              {busy ? 'Unlocking…' : 'Unlock'}
+            <Button type="submit" className="w-full h-12" disabled={busy || !pw || isLocked}>
+              {isLocked ? `Locked — ${lockTimer}s` : busy ? 'Unlocking…' : 'Unlock'}
             </Button>
           </form>
         </div>
