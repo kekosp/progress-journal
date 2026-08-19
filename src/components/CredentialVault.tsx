@@ -3,6 +3,7 @@ import { App as CapApp } from '@capacitor/app';
 import {
   CredentialEntry,
   isVaultSetup,
+  hasVaultData,
   setupVault,
   unlockVault,
   readEntries,
@@ -33,6 +34,24 @@ import {
 const AUTO_LOCK_MS = 2 * 60 * 1000; // 2 minutes of inactivity
 const MIN_PW_LEN = 8;
 
+// ── Brute-force protection (mirrors AdminGate) ────────────────────────────────
+const VAULT_LOCKOUT_KEY = 'vault-lock-attempts';
+const MAX_ATTEMPTS = 5;
+const BASE_LOCKOUT_SECONDS = 30;
+const MAX_LOCKOUT_SECONDS = 900;
+
+interface LockoutState { attempts: number; lockedUntil: number | null; }
+
+function readLockout(): LockoutState {
+  try {
+    const raw = localStorage.getItem(VAULT_LOCKOUT_KEY);
+    if (raw) return JSON.parse(raw) as LockoutState;
+  } catch { /* ignore */ }
+  return { attempts: 0, lockedUntil: null };
+}
+function writeLockout(s: LockoutState) { localStorage.setItem(VAULT_LOCKOUT_KEY, JSON.stringify(s)); }
+function clearLockout() { localStorage.removeItem(VAULT_LOCKOUT_KEY); }
+
 type Mode = 'setup' | 'unlock' | 'unlocked';
 
 export function CredentialVault() {
@@ -47,6 +66,13 @@ export function CredentialVault() {
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Brute-force lockout state
+  const initialLock = readLockout();
+  const [attempts, setAttempts] = useState(initialLock.attempts);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(initialLock.lockedUntil);
+  const [lockTimer, setLockTimer] = useState(0);
+  const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
 
   // Entry editor
   const [editorOpen, setEditorOpen] = useState(false);
