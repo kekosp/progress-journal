@@ -4,7 +4,7 @@ android {
     namespace = "app.lovable.k541b7c83680c47fe8dfc25833fe24b42"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.reports.native"
+        applicationId "app.lovable.k541b7c83680c47fe8dfc25833fe24b42"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 60301

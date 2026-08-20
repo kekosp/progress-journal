@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.reports.native',
+  appId: 'app.lovable.k541b7c83680c47fe8dfc25833fe24b42',
   appName: 'Reports',
   webDir: 'dist',
   plugins: {
