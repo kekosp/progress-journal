@@ -49,16 +49,34 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Create signing keystore
+      - name: Prepare signing keystore
         working-directory: android
         run: |
-          keytool -genkeypair -v \
-            -keystore release.keystore \
-            -alias reports \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass "${{ secrets.KEYSTORE_PASSWORD || 'reports-ci' }}" \
-            -keypass "${{ secrets.KEYSTORE_PASSWORD || 'reports-ci' }}" \
-            -dname "CN=Reports, OU=Mobile, O=Reports, L=Cairo, S=Cairo, C=EG"
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "Using the permanent keystore from repo secrets (same signature every build)."
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret — generating a throwaway keystore."
+            echo "::warning::Each build gets a NEW signature, so Android shows 'App not installed' unless you uninstall the previous version first."
+            keytool -genkeypair -v \
+              -keystore release.keystore \
+              -alias reports \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "${{ secrets.KEYSTORE_PASSWORD || 'reports-ci' }}" \
+              -keypass "${{ secrets.KEYSTORE_PASSWORD || 'reports-ci' }}" \
+              -dname "CN=Reports, OU=Mobile, O=Reports, L=Cairo, S=Cairo, C=EG"
+            echo "Save this value as the ANDROID_KEYSTORE_BASE64 repo secret to reuse this signature:"
+            base64 -w0 release.keystore > keystore.b64
+          fi
+
+      - name: Upload generated keystore (only when no permanent keystore secret)
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: keystore-backup
+          path: android/keystore.b64
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Build signed release APK
         working-directory: android
