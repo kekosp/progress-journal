@@ -20,12 +20,17 @@ This is a **signature conflict**, not a broken APK. An app with the same package
 (`app.lovable.k541b7c83680c47fe8dfc25833fe24b42`) is already on the phone — for example the older
 Median-wrapper build — and it was signed with a different key.
 
-Since v6.3.1 the app ships with its own package id (`app.reports.native`) instead of the old
-Median-wrapper id, so it **installs alongside the old app — no uninstall needed**. You will briefly
-have two "Reports" icons; delete the old one whenever you're ready.
+Android only allows an in-place update when the new APK has the **same package id and the same
+signing key** as the installed app. The app currently on your phone was produced by a different
+builder with a key we don't have, so that very first switch cannot be an update — it must be a
+one-time uninstall:
 
-Note: Android keeps app data per package, so the new install starts empty. Export your data from the
-old app (Data transfer → Export JSON) and import it into the new one if you need to carry it over.
+1. Export your data first (Data transfer → Export JSON) and keep the file.
+2. Uninstall the existing **Reports** app.
+3. Install `reports-v6.3.1.apk`, then import your JSON back.
+
+After that one migration, every future build installs as a normal update (no uninstall, data kept) —
+as long as the permanent keystore is configured below.
 
 Other causes to check if it still fails:
 - The download was incomplete → re-download from the **Releases** tab.
