@@ -14,10 +14,26 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+
+// Neutralize spreadsheet formula injection (=, +, -, @, tab, CR) in exported cells
+function safeCell(value: unknown): string | number {
+  if (typeof value === 'number') return value;
+  const str = value == null ? '' : String(value);
+  return /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+}
+
+function sanitizeRows<T extends Record<string, unknown>>(rows: T[]) {
+  return rows.map(row => {
+    const out: Record<string, string | number> = {};
+    for (const [k, v] of Object.entries(row)) out[k] = safeCell(v);
+    return out;
+  });
+}
+
 // ─── Reports ──────────────────────────────────────────────────────────────────
 
 function reportsToRows(reports: Report[]) {
-  return reports.map(r => ({
+  return sanitizeRows(reports.map(r => ({
     Title: r.title,
     Category: CATEGORY_LABELS[r.category],
     Priority: PRIORITY_LABELS[r.priority],
@@ -32,7 +48,7 @@ function reportsToRows(reports: Report[]) {
     'Signed At': r.signedAt ? new Date(r.signedAt).toLocaleString() : '',
     Created: new Date(r.createdAt).toLocaleString(),
     Updated: new Date(r.updatedAt).toLocaleString(),
-  }));
+  })));
 }
 
 export function exportReportsCsv(reports: Report[]) {
@@ -64,7 +80,7 @@ export function exportReportsXlsx(reports: Report[]) {
 // ─── Inventory ────────────────────────────────────────────────────────────────
 
 function inventoryToRows(items: InventoryItem[]) {
-  return items.map(i => ({
+  return sanitizeRows(items.map(i => ({
     Name: i.name,
     'Serial Number': i.serialNumbers?.length ? i.serialNumbers.join(', ') : (i.serialNumber || ''),
     Quantity: i.quantity,
@@ -82,7 +98,7 @@ function inventoryToRows(items: InventoryItem[]) {
     'Service Actual Return': i.serviceActualReturnDate || '',
     Created: new Date(i.createdAt).toLocaleString(),
     Updated: new Date(i.updatedAt).toLocaleString(),
-  }));
+  })));
 }
 
 export function exportInventoryCsv(items: InventoryItem[]) {
