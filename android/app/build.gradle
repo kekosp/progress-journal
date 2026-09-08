@@ -1,5 +1,23 @@
 apply plugin: 'com.android.application'
 
+// One shared signing key for BOTH debug and release builds.
+// Put a file named `keystore.properties` next to this file (android/keystore.properties):
+//   storeFile=/absolute/path/to/reports-keystore.jks
+//   storePassword=...
+//   keyAlias=reports
+//   keyPassword=...
+// Or set env vars: RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+def ksPropsFile = rootProject.file('keystore.properties')
+def ksProps = new Properties()
+if (ksPropsFile.exists()) {
+    ksPropsFile.withInputStream { ksProps.load(it) }
+}
+def ksStoreFile = ksProps['storeFile'] ?: System.getenv('RELEASE_STORE_FILE')
+def ksStorePassword = ksProps['storePassword'] ?: System.getenv('RELEASE_STORE_PASSWORD')
+def ksKeyAlias = ksProps['keyAlias'] ?: System.getenv('RELEASE_KEY_ALIAS')
+def ksKeyPassword = ksProps['keyPassword'] ?: System.getenv('RELEASE_KEY_PASSWORD')
+def hasSharedKey = ksStoreFile != null && file(ksStoreFile).exists()
+
 android {
     namespace = "app.lovable.k541b7c83680c47fe8dfc25833fe24b42"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +25,8 @@ android {
         applicationId "app.lovable.k541b7c83680c47fe8dfc25833fe24b42"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 60301
-        versionName "6.3.1"
+        versionCode 60302
+        versionName "6.3.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +34,30 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        shared {
+            if (hasSharedKey) {
+                storeFile file(ksStoreFile)
+                storePassword ksStorePassword
+                keyAlias ksKeyAlias
+                keyPassword ksKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasSharedKey) {
+                signingConfig signingConfigs.shared
+            }
+        }
+        debug {
+            // Debug builds use the SAME key as release, so a debug install can be
+            // updated by a release build (and vice versa) with no uninstall.
+            if (hasSharedKey) {
+                signingConfig signingConfigs.shared
+            }
         }
     }
 }

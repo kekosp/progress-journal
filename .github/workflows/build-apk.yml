@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: 'Version name (e.g. 6.3.1)'
+        description: 'Version name (e.g. 6.3.2)'
         required: true
-        default: '6.3.1'
+        default: '6.3.2'
       version_code:
         description: 'Version code (integer, must increase each build)'
         required: true
-        default: '60301'
+        default: '60302'
 
 jobs:
   build:
