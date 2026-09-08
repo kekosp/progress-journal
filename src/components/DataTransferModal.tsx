@@ -1,5 +1,14 @@
 import { useRef, useState } from 'react';
-import { exportAllData, importData, ImportMode, getReports } from '@/lib/storage';
+import {
+  exportAllData,
+  importData,
+  ImportMode,
+  getReports,
+  downloadBackupInBrowser,
+  copyBackupToClipboard,
+  shareBackupAsText,
+} from '@/lib/storage';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -17,6 +26,8 @@ import {
   CheckCircle2,
   RefreshCw,
   Share2,
+  Copy,
+  ClipboardPaste,
 } from 'lucide-react';
 
 interface Props {
@@ -36,6 +47,7 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
   const [resultCount, setResultCount] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pasteText, setPasteText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reportCount = getReports().length;
@@ -78,6 +90,46 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
       }
     } finally {
       setBusy(false);
+    }
+  }
+
+  function handleBrowserDownload() {
+    try {
+      const name = downloadBackupInBrowser();
+      toast({ title: 'Download started', description: `Look for ${name} in your Downloads.` });
+    } catch (e) {
+      toast({
+        title: 'Download failed',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleCopyText() {
+    try {
+      const len = await copyBackupToClipboard();
+      toast({ title: 'Backup copied', description: `${len.toLocaleString()} characters copied. Paste it somewhere safe.` });
+    } catch (e) {
+      toast({
+        title: 'Copy failed',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleShareText() {
+    try {
+      await shareBackupAsText();
+    } catch (e) {
+      if (!(e instanceof Error && /cancel|abort/i.test(e.message))) {
+        toast({
+          title: 'Share failed',
+          description: e instanceof Error ? e.message : 'Unknown error',
+          variant: 'destructive',
+        });
+      }
     }
   }
 
@@ -199,9 +251,39 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
                 Share via WhatsApp / Bluetooth / email…
               </Button>
 
+              <Button
+                variant="outline"
+                onClick={handleBrowserDownload}
+                className="w-full gap-2"
+                disabled={reportCount === 0 || busy}
+              >
+                <Download className="w-4 h-4" />
+                Download to my phone (Downloads)
+              </Button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={handleCopyText}
+                  className="w-full gap-2"
+                  disabled={reportCount === 0 || busy}
+                >
+                  <Copy className="w-4 h-4" /> Copy text
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleShareText}
+                  className="w-full gap-2"
+                  disabled={reportCount === 0 || busy}
+                >
+                  <Share2 className="w-4 h-4" /> Send as text
+                </Button>
+              </div>
+
               <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-                The backup is a <span className="font-mono">.json</span> file. Send it any
-                way you like, then open PVP on the other phone and tap <strong>Import</strong>.
+                If you can't find the saved file, use <strong>Copy text</strong> or{' '}
+                <strong>Send as text</strong> — paste it into a note, chat or email, then use{' '}
+                <strong>Import → Paste backup</strong> on the other app.
               </p>
             </>
           )}
@@ -264,6 +346,34 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
               >
                 <Upload className="w-4 h-4" />
                 {busy ? 'Reading file…' : 'Choose backup file'}
+              </Button>
+
+              <div className="relative flex items-center gap-2">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest">or paste</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              <Textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                placeholder="Paste the backup text here…"
+                className="h-24 text-xs font-mono"
+              />
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                disabled={!pasteText.trim() || busy}
+                onClick={() => {
+                  if (importMode === 'replace') {
+                    setPendingJson(pasteText);
+                    setStep('confirm-replace');
+                  } else {
+                    performImport(pasteText, 'merge');
+                  }
+                }}
+              >
+                <ClipboardPaste className="w-4 h-4" /> Import pasted backup
               </Button>
             </>
           )}

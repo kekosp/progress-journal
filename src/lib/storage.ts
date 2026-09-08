@@ -153,7 +153,7 @@ interface ExportOptions {
  * send it via WhatsApp, Bluetooth, email, etc.
  * Returns the saved file path.
  */
-export async function exportAllData(options: ExportOptions = {}): Promise<string> {
+export function buildBackupJson(): string {
   const reports = getReports();
   const bundle: ExportBundle = {
     version: EXPORT_VERSION,
@@ -161,8 +161,56 @@ export async function exportAllData(options: ExportOptions = {}): Promise<string
     reportCount: reports.length,
     reports,
   };
+  return JSON.stringify(bundle, null, 2);
+}
 
-  const json = JSON.stringify(bundle, null, 2);
+/** Downloads the backup through the browser (works in any WebView/browser). */
+export function downloadBackupInBrowser(): string {
+  const json = buildBackupJson();
+  const filename = `reports-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  logActivity('report', 'exported', 'batch', `${getReports().length} reports`, filename);
+  return filename;
+}
+
+/** Copies the whole backup as text to the clipboard. */
+export async function copyBackupToClipboard(): Promise<number> {
+  const json = buildBackupJson();
+  try {
+    await navigator.clipboard.writeText(json);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = json;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  return json.length;
+}
+
+/** Opens the system share sheet with the backup as plain text (no file needed). */
+export async function shareBackupAsText(): Promise<void> {
+  const json = buildBackupJson();
+  if (navigator.share) {
+    await navigator.share({ title: 'Reports Backup', text: json });
+    return;
+  }
+  await Share.share({ title: 'Reports Backup', text: json, dialogTitle: 'Send backup' });
+}
+
+export async function exportAllData(options: ExportOptions = {}): Promise<string> {
+  const reports = getReports();
+  const json = buildBackupJson();
   const filename = `reports-backup-${new Date().toISOString().slice(0, 10)}.json`;
 
   // Write to the public Downloads directory so the user can see it in Files
