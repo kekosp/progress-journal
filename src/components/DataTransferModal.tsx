@@ -1,5 +1,14 @@
 import { useRef, useState } from 'react';
-import { exportAllData, importData, ImportMode, getReports } from '@/lib/storage';
+import {
+  exportAllData,
+  importData,
+  ImportMode,
+  getReports,
+  downloadBackupInBrowser,
+  copyBackupToClipboard,
+  shareBackupAsText,
+} from '@/lib/storage';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import {
