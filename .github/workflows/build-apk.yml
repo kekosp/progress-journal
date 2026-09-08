@@ -10,11 +10,11 @@ on:
       version_name:
         description: 'Version name (e.g. 6.3.1)'
         required: true
-        default: '6.3.1'
+        default: '6.3.2'
       version_code:
         description: 'Version code (integer, must increase each build)'
         required: true
-        default: '60301'
+        default: '6.3.2'
 
 jobs:
   build:
