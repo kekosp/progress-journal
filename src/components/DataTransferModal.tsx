@@ -208,9 +208,39 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
                 Share via WhatsApp / Bluetooth / email…
               </Button>
 
+              <Button
+                variant="outline"
+                onClick={handleBrowserDownload}
+                className="w-full gap-2"
+                disabled={reportCount === 0 || busy}
+              >
+                <Download className="w-4 h-4" />
+                Download to my phone (Downloads)
+              </Button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={handleCopyText}
+                  className="w-full gap-2"
+                  disabled={reportCount === 0 || busy}
+                >
+                  <Copy className="w-4 h-4" /> Copy text
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleShareText}
+                  className="w-full gap-2"
+                  disabled={reportCount === 0 || busy}
+                >
+                  <Share2 className="w-4 h-4" /> Send as text
+                </Button>
+              </div>
+
               <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-                The backup is a <span className="font-mono">.json</span> file. Send it any
-                way you like, then open PVP on the other phone and tap <strong>Import</strong>.
+                If you can't find the saved file, use <strong>Copy text</strong> or{' '}
+                <strong>Send as text</strong> — paste it into a note, chat or email, then use{' '}
+                <strong>Import → Paste backup</strong> on the other app.
               </p>
             </>
           )}
