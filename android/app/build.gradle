@@ -1,5 +1,23 @@
 apply plugin: 'com.android.application'
 
+// One shared signing key for BOTH debug and release builds.
+// Put a file named `keystore.properties` next to this file (android/keystore.properties):
+//   storeFile=/absolute/path/to/reports-keystore.jks
+//   storePassword=...
+//   keyAlias=reports
+//   keyPassword=...
+// Or set env vars: RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+def ksPropsFile = rootProject.file('keystore.properties')
+def ksProps = new Properties()
+if (ksPropsFile.exists()) {
+    ksPropsFile.withInputStream { ksProps.load(it) }
+}
+def ksStoreFile = ksProps['storeFile'] ?: System.getenv('RELEASE_STORE_FILE')
+def ksStorePassword = ksProps['storePassword'] ?: System.getenv('RELEASE_STORE_PASSWORD')
+def ksKeyAlias = ksProps['keyAlias'] ?: System.getenv('RELEASE_KEY_ALIAS')
+def ksKeyPassword = ksProps['keyPassword'] ?: System.getenv('RELEASE_KEY_PASSWORD')
+def hasSharedKey = ksStoreFile != null && file(ksStoreFile).exists()
+
 android {
     namespace = "app.lovable.k541b7c83680c47fe8dfc25833fe24b42"
     compileSdk = rootProject.ext.compileSdkVersion
