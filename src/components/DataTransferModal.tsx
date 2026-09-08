@@ -26,6 +26,8 @@ import {
   CheckCircle2,
   RefreshCw,
   Share2,
+  Copy,
+  ClipboardPaste,
 } from 'lucide-react';
 
 interface Props {
