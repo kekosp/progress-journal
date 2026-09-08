@@ -346,6 +346,34 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
                 <Upload className="w-4 h-4" />
                 {busy ? 'Reading file…' : 'Choose backup file'}
               </Button>
+
+              <div className="relative flex items-center gap-2">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest">or paste</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              <Textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                placeholder="Paste the backup text here…"
+                className="h-24 text-xs font-mono"
+              />
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                disabled={!pasteText.trim() || busy}
+                onClick={() => {
+                  if (importMode === 'replace') {
+                    setPendingJson(pasteText);
+                    setStep('confirm-replace');
+                  } else {
+                    performImport(pasteText, 'merge');
+                  }
+                }}
+              >
+                <ClipboardPaste className="w-4 h-4" /> Import pasted backup
+              </Button>
             </>
           )}
 
