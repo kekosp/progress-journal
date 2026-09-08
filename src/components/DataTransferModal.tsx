@@ -92,6 +92,46 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
     }
   }
 
+  function handleBrowserDownload() {
+    try {
+      const name = downloadBackupInBrowser();
+      toast({ title: 'Download started', description: `Look for ${name} in your Downloads.` });
+    } catch (e) {
+      toast({
+        title: 'Download failed',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleCopyText() {
+    try {
+      const len = await copyBackupToClipboard();
+      toast({ title: 'Backup copied', description: `${len.toLocaleString()} characters copied. Paste it somewhere safe.` });
+    } catch (e) {
+      toast({
+        title: 'Copy failed',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleShareText() {
+    try {
+      await shareBackupAsText();
+    } catch (e) {
+      if (!(e instanceof Error && /cancel|abort/i.test(e.message))) {
+        toast({
+          title: 'Share failed',
+          description: e instanceof Error ? e.message : 'Unknown error',
+          variant: 'destructive',
+        });
+      }
+    }
+  }
+
   // ── Import ────────────────────────────────────────────────────────────────
 
   // Capacitor's WebView forwards <input type="file"> to the Android file picker natively.
