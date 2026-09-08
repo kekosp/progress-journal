@@ -47,6 +47,7 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
   const [resultCount, setResultCount] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pasteText, setPasteText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reportCount = getReports().length;
