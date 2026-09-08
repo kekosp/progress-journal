@@ -34,10 +34,30 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        shared {
+            if (hasSharedKey) {
+                storeFile file(ksStoreFile)
+                storePassword ksStorePassword
+                keyAlias ksKeyAlias
+                keyPassword ksKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasSharedKey) {
+                signingConfig signingConfigs.shared
+            }
+        }
+        debug {
+            // Debug builds use the SAME key as release, so a debug install can be
+            // updated by a release build (and vice versa) with no uninstall.
+            if (hasSharedKey) {
+                signingConfig signingConfigs.shared
+            }
         }
     }
 }
