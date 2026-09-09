@@ -15,6 +15,7 @@ const reportImageSchema = z.object({
   caption: z.string().max(500).optional(),
   timestamp: z.string(),
   annotatedDataUrl: z.string().max(2_000_000).optional(),
+  tag: z.enum(['before', 'after']).optional(),
 });
 
 const reportSchema = z.object({
