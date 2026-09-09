@@ -126,9 +126,14 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
 
   async function handleShareText() {
     try {
-      await shareBackupAsText();
+      const how = await shareBackupAsText();
+      if (how === 'download') {
+        toast({ title: 'Saved to your phone', description: 'Sharing was blocked, so the backup file was saved to Downloads instead.' });
+      } else if (how === 'clipboard') {
+        toast({ title: 'Backup copied', description: 'Sharing was blocked, so the backup was copied. Paste it into a message or note.' });
+      }
     } catch (e) {
-      if (!(e instanceof Error && /cancel|abort/i.test(e.message))) {
+      if (!(e instanceof Error && /cancel|abort/i.test(e.name + e.message))) {
         toast({
           title: 'Share failed',
           description: e instanceof Error ? e.message : 'Unknown error',
@@ -137,6 +142,7 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
       }
     }
   }
+
 
   // ── Import ────────────────────────────────────────────────────────────────
 
