@@ -15,6 +15,7 @@ const reportImageSchema = z.object({
   caption: z.string().max(500).optional(),
   timestamp: z.string(),
   annotatedDataUrl: z.string().max(2_000_000).optional(),
+  tag: z.enum(['before', 'after']).optional(),
 });
 
 const reportSchema = z.object({
@@ -138,6 +139,8 @@ export interface ExportBundle {
   exportedAt: string;
   reportCount: number;
   reports: Report[];
+  /** Everything else the app keeps on the device, stored as raw strings. */
+  data?: Record<string, string>;
 }
 
 export type ImportMode = 'merge' | 'replace';
@@ -147,19 +150,34 @@ interface ExportOptions {
   share?: boolean;
 }
 
+/** All other local data keys included in a backup alongside reports. */
+const EXTRA_KEYS = [
+  'inventory-data',
+  'maintenance-schedule',
+  'report-comments',
+  'report-templates',
+  'activity-log',
+  'vault-meta',
+  'vault-data',
+] as const;
+
 /**
- * Saves all reports as a .json file to the device's Downloads folder.
- * If `share: true`, also opens the Android share sheet so the user can
- * send it via WhatsApp, Bluetooth, email, etc.
- * Returns the saved file path.
+ * Builds the full backup: reports plus inventory, calendar, comments,
+ * templates, activity log and the encrypted vault.
  */
 export function buildBackupJson(): string {
   const reports = getReports();
+  const data: Record<string, string> = {};
+  for (const key of EXTRA_KEYS) {
+    const value = localStorage.getItem(key);
+    if (value != null) data[key] = value;
+  }
   const bundle: ExportBundle = {
     version: EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
     reportCount: reports.length,
     reports,
+    data,
   };
   return JSON.stringify(bundle, null, 2);
 }
@@ -334,6 +352,20 @@ export function importData(jsonText: string, mode: ImportMode = 'merge'): number
 
   if (validReports.length === 0 && raw.length > 0) {
     throw new Error(`All ${raw.length} report(s) failed validation. ${errors[0]}`);
+  }
+
+  // Restore the other data (inventory, calendar, comments, templates, vault)
+  const extras = (parsed as Record<string, unknown>).data;
+  if (extras && typeof extras === 'object') {
+    for (const key of EXTRA_KEYS) {
+      const value = (extras as Record<string, unknown>)[key];
+      if (typeof value !== 'string') continue;
+      const current = localStorage.getItem(key);
+      // merge keeps whatever already exists; replace always overwrites
+      if (mode === 'replace' || current == null || current === '[]') {
+        localStorage.setItem(key, value);
+      }
+    }
   }
 
   if (mode === 'replace') {
