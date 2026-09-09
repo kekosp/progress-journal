@@ -354,6 +354,20 @@ export function importData(jsonText: string, mode: ImportMode = 'merge'): number
     throw new Error(`All ${raw.length} report(s) failed validation. ${errors[0]}`);
   }
 
+  // Restore the other data (inventory, calendar, comments, templates, vault)
+  const extras = (parsed as Record<string, unknown>).data;
+  if (extras && typeof extras === 'object') {
+    for (const key of EXTRA_KEYS) {
+      const value = (extras as Record<string, unknown>)[key];
+      if (typeof value !== 'string') continue;
+      const current = localStorage.getItem(key);
+      // merge keeps whatever already exists; replace always overwrites
+      if (mode === 'replace' || current == null || current === '[]') {
+        localStorage.setItem(key, value);
+      }
+    }
+  }
+
   if (mode === 'replace') {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(validReports));
     logActivity('report', 'imported', 'batch', `${validReports.length} reports`, `Mode: replace`);
