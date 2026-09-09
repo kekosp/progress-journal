@@ -198,15 +198,68 @@ export async function copyBackupToClipboard(): Promise<number> {
   return json.length;
 }
 
-/** Opens the system share sheet with the backup as plain text (no file needed). */
-export async function shareBackupAsText(): Promise<void> {
+/**
+ * Tries every available way to hand the backup to another app.
+ * Order: share as a file → share as text → save to the device → clipboard.
+ * Returns which method actually worked so the UI can tell the user.
+ */
+export type ShareOutcome = 'file' | 'text' | 'download' | 'clipboard';
+
+export async function shareBackupAsText(): Promise<ShareOutcome> {
   const json = buildBackupJson();
-  if (navigator.share) {
-    await navigator.share({ title: 'Reports Backup', text: json });
-    return;
+  const filename = `reports-backup-${new Date().toISOString().slice(0, 10)}.json`;
+
+  // 1) Share the backup as a real file (best: WhatsApp, Drive, email attachments)
+  try {
+    const file = new File([json], filename, { type: 'application/json' });
+    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+    if (nav.share && nav.canShare?.({ files: [file] })) {
+      await nav.share({ title: 'Reports Backup', files: [file] });
+      return 'file';
+    }
+  } catch (e) {
+    if (e instanceof Error && /abort|cancel/i.test(e.name + e.message)) throw e;
   }
-  await Share.share({ title: 'Reports Backup', text: json, dialogTitle: 'Send backup' });
+
+  // 2) Share as plain text
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: 'Reports Backup', text: json });
+      return 'text';
+    }
+  } catch (e) {
+    if (e instanceof Error && /abort|cancel/i.test(e.name + e.message)) throw e;
+  }
+
+  // 3) Native (Capacitor) share of a saved file
+  try {
+    await Filesystem.writeFile({
+      path: filename,
+      data: json,
+      directory: Directory.Data,
+      encoding: Encoding.UTF8,
+      recursive: true,
+    });
+    const uriResult = await Filesystem.getUri({ path: filename, directory: Directory.Data });
+    await Share.share({ title: 'Reports Backup', url: uriResult.uri, dialogTitle: 'Send backup' });
+    return 'file';
+  } catch (e) {
+    if (e instanceof Error && /abort|cancel|dismiss/i.test(e.name + e.message)) throw e;
+  }
+
+  // 4) Save straight to the device
+  try {
+    downloadBackupInBrowser();
+    return 'download';
+  } catch {
+    /* keep going */
+  }
+
+  // 5) Last resort: clipboard
+  await copyBackupToClipboard();
+  return 'clipboard';
 }
+
 
 export async function exportAllData(options: ExportOptions = {}): Promise<string> {
   const reports = getReports();
