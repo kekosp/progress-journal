@@ -81,7 +81,11 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
       await exportAllData({ share: true });
     } catch (e) {
       // User dismissed the share sheet — not a real error
-      if (!(e instanceof Error && e.message.includes('cancel'))) {
+      if (e instanceof Error && /cancel|abort|dismiss/i.test(e.name + e.message)) return;
+      // Otherwise fall back to the other ways of sending the backup
+      try {
+        await handleShareText();
+      } catch {
         toast({
           title: 'Share failed',
           description: e instanceof Error ? e.message : 'Unknown error',
@@ -92,6 +96,7 @@ export function DataTransferModal({ open, onClose, onImported }: Props) {
       setBusy(false);
     }
   }
+
 
   function handleBrowserDownload() {
     try {
