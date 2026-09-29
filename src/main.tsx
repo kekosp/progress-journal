@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
-import App from "./App.tsx";
+import { initLargeStorage } from "./lib/large-storage";
 import "./index.css";
 
 // Bundled fonts — no CDN required, works fully offline on Android
@@ -27,8 +27,12 @@ import "@fontsource/jetbrains-mono/500.css";
   } catch { /* ignore */ }
 })();
 
-createRoot(document.getElementById("root")!).render(
-  <HelmetProvider>
-    <App />
-  </HelmetProvider>,
-);
+// Photos live in the larger IndexedDB store; load it before the app reads any data.
+initLargeStorage().finally(async () => {
+  const { default: App } = await import("./App.tsx");
+  createRoot(document.getElementById("root")!).render(
+    <HelmetProvider>
+      <App />
+    </HelmetProvider>,
+  );
+});
