@@ -1,7 +1,7 @@
 // ReportsTab — extracted from Index.tsx to keep that file manageable.
 // Owns: report list, filtering, sorting, bulk-select, batch export, stats bento.
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Report, ReportCategory, ReportPriority, ReportStatus, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '@/types/report';
 import { getReportById } from '@/lib/storage';
 import { toast } from '@/components/ui/use-toast';
@@ -52,6 +52,9 @@ export function ReportsTab({ reports, onRefresh, onLock, onSecretTap, onShowTran
   const [selectMode, setSelectMode]         = useState(false);
   const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set());
   const [batchExporting, setBatchExporting] = useState(false);
+  const PAGE_SIZE = 30;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const toggleSelect = useCallback((id: string) =>
     setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }), []);
@@ -84,6 +87,20 @@ export function ReportsTab({ reports, onRefresh, onLock, onSecretTap, onShowTran
       return sortDir === 'desc' ? -cmp : cmp;
     });
   }, [reports, search, filterCategory, filterPriority, filterStatus, sortField, sortDir, dateFrom, dateTo]);
+
+  // Start from the first page whenever the search/filters/sort change
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, filterCategory, filterPriority, filterStatus, sortField, sortDir, dateFrom, dateTo]);
+
+  // Load the next page automatically as the user scrolls near the end
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) setVisibleCount(c => c + PAGE_SIZE);
+    }, { rootMargin: '400px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [visibleCount, filtered.length, view]);
 
   const stats = useMemo(() => ({
     total:      reports.length,
@@ -311,7 +328,8 @@ export function ReportsTab({ reports, onRefresh, onLock, onSecretTap, onShowTran
             )}
           </div>
         ) : (
-          filtered.map(report => (
+          <>
+          {filtered.slice(0, visibleCount).map(report => (
             <div key={report.id} className="flex items-start gap-2">
               {selectMode && (
                 <button onClick={() => toggleSelect(report.id)}
@@ -331,7 +349,15 @@ export function ReportsTab({ reports, onRefresh, onLock, onSecretTap, onShowTran
                 }} />
               </div>
             </div>
-          ))
+          ))}
+          {visibleCount < filtered.length && (
+            <div ref={sentinelRef} className="pt-2 text-center">
+              <Button variant="outline" size="sm" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}>
+                Show more ({filtered.length - visibleCount} left)
+              </Button>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>
