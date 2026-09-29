@@ -88,6 +88,20 @@ export function ReportsTab({ reports, onRefresh, onLock, onSecretTap, onShowTran
     });
   }, [reports, search, filterCategory, filterPriority, filterStatus, sortField, sortDir, dateFrom, dateTo]);
 
+  // Start from the first page whenever the search/filters/sort change
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, filterCategory, filterPriority, filterStatus, sortField, sortDir, dateFrom, dateTo]);
+
+  // Load the next page automatically as the user scrolls near the end
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) setVisibleCount(c => c + PAGE_SIZE);
+    }, { rootMargin: '400px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [visibleCount, filtered.length, view]);
+
   const stats = useMemo(() => ({
     total:      reports.length,
     completed:  reports.filter(r => r.status === 'completed').length,
