@@ -70,7 +70,9 @@ jobs:
           fi
 
       - name: Upload generated keystore (only when no permanent keystore secret)
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 == '' }}
+        if: ${{ env.ANDROID_KEYSTORE_B64 == '' }}
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         uses: actions/upload-artifact@v4
         with:
           name: keystore-backup
