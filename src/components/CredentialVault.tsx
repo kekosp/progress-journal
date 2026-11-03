@@ -1,3 +1,5 @@
+import { useBiometric } from '@/lib/biometric';
+import { BiometricControls } from '@/components/BiometricControls';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { App as CapApp } from '@capacitor/app';
 import {
@@ -66,6 +68,7 @@ export function CredentialVault() {
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const bio = useBiometric('vault');
 
   // Brute-force lockout state
   const initialLock = readLockout();
@@ -163,6 +166,25 @@ export function CredentialVault() {
     } finally { setBusy(false); }
   }
 
+  async function handleFingerprint() {
+    const creds = await bio.unlock();
+    if (!creds) return;
+    setBusy(true);
+    try {
+      const k = await unlockVault(creds.password);
+      if (!k) {
+        await bio.reset();
+        setErr('Fingerprint unlock was reset. Enter your master password once to turn it back on.');
+        return;
+      }
+      const list = await readEntries(k);
+      setKey(k); setEntries(list); setAttempts(0); setLockedUntil(null); clearLockout();
+      setMode('unlocked');
+    } catch {
+      setErr('Failed to unlock vault.');
+    } finally { setBusy(false); }
+  }
+
   async function handleUnlock(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
@@ -192,6 +214,7 @@ export function CredentialVault() {
         return;
       }
       const list = await readEntries(k);
+      await bio.afterPasswordSuccess('', pw);
       setKey(k);
       setEntries(list);
       setPw('');
@@ -285,6 +308,7 @@ export function CredentialVault() {
     if (!check) { setCpwErr('Current password is incorrect.'); return; }
     try {
       const newKey = await changeMasterPassword(key, cpwNew);
+      if (bio.enabled) await bio.afterPasswordSuccess("", cpwNew);
       setKey(newKey);
       setCpwOld(''); setCpwNew(''); setCpwNew2('');
       setSettingsOpen(false);
@@ -427,6 +451,7 @@ export function CredentialVault() {
             <Button type="submit" className="w-full h-12" disabled={busy || !pw || isLocked}>
               {isLocked ? `Locked — ${lockTimer}s` : busy ? 'Unlocking…' : 'Unlock'}
             </Button>
+            <BiometricControls bio={bio} onFingerprint={handleFingerprint} disabled={isLocked || busy} />
           </form>
         </div>
       </div>
