@@ -308,6 +308,7 @@ export function CredentialVault() {
     if (!check) { setCpwErr('Current password is incorrect.'); return; }
     try {
       const newKey = await changeMasterPassword(key, cpwNew);
+      if (bio.enabled) await bio.afterPasswordSuccess("", cpwNew);
       setKey(newKey);
       setCpwOld(''); setCpwNew(''); setCpwNew2('');
       setSettingsOpen(false);
