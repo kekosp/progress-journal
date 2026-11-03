@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { verifyAuth, getAuthMethod, AuthMethod } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useBiometric } from '@/lib/biometric';
+import { BiometricControls } from '@/components/BiometricControls';
 import { Lock, Delete, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 interface Props {
@@ -41,6 +43,7 @@ export function LockScreen({ onUnlocked }: Props) {
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
 
+  const bio = useBiometric('app');
   const stored = getLockoutState();
   const [attempts, setAttempts] = useState(stored.attempts);
   const [lockedUntil, setLockedUntil] = useState<number | null>(stored.lockedUntil);
@@ -78,6 +81,7 @@ export function LockScreen({ onUnlocked }: Props) {
 
     if (ok) {
       clearLockoutState();
+      await bio.afterPasswordSuccess('', secret);
       onUnlocked();
     } else {
       const next = attempts + 1;
@@ -97,7 +101,23 @@ export function LockScreen({ onUnlocked }: Props) {
         setError(`Incorrect ${method === 'pin' ? 'PIN' : 'password'}. ${MAX_ATTEMPTS - (next % MAX_ATTEMPTS || MAX_ATTEMPTS)} attempt${MAX_ATTEMPTS - (next % MAX_ATTEMPTS || MAX_ATTEMPTS) !== 1 ? 's' : ''} left.`);
       }
     }
-  }, [checking, lockedUntil, attempts, method, onUnlocked]);
+  }, [checking, lockedUntil, attempts, method, onUnlocked, bio]);
+
+  const handleFingerprint = useCallback(async () => {
+    const creds = await bio.unlock();
+    if (!creds) return;
+    if (await verifyAuth(creds.password)) {
+      clearLockoutState();
+      onUnlocked();
+    } else {
+      await bio.reset();
+      setError('Fingerprint unlock was reset. Enter your ' + (method === 'pin' ? 'PIN' : 'password') + ' once to turn it back on.');
+    }
+  }, [bio, method, onUnlocked]);
+
+  const bioControls = (
+    <BiometricControls bio={bio} onFingerprint={handleFingerprint} disabled={isLocked} />
+  );
 
   // Auto-submit when PIN reaches required length
   useEffect(() => {
@@ -180,6 +200,7 @@ export function LockScreen({ onUnlocked }: Props) {
             <Delete className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
+        <div className="w-full max-w-[260px]">{bioControls}</div>
       </div>
     );
   }
@@ -230,6 +251,7 @@ export function LockScreen({ onUnlocked }: Props) {
         >
           {checking ? 'Checking…' : 'Unlock'}
         </Button>
+        {bioControls}
       </div>
     </div>
   );

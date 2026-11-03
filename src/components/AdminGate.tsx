@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { isAdminSetup, setupAdmin, verifyAdmin } from '@/lib/admin-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useBiometric } from '@/lib/biometric';
+import { BiometricControls } from '@/components/BiometricControls';
 import { Shield, Eye, EyeOff, AlertCircle, UserPlus, LogIn } from 'lucide-react';
 
 interface Props {
@@ -35,6 +37,7 @@ export function AdminGate({ children }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const bio = useBiometric('admin');
   const initial = readLockout();
   const [attempts, setAttempts] = useState(initial.attempts);
   const [lockedUntil, setLockedUntil] = useState<number | null>(initial.lockedUntil);
@@ -78,11 +81,13 @@ export function AdminGate({ children }: Props) {
       }
       await setupAdmin(username.trim(), password);
       clearLockout();
+      await bio.afterPasswordSuccess(username.trim(), password);
       setAuthenticated(true);
     } else {
       const ok = await verifyAdmin(username.trim(), password);
       if (ok) {
         clearLockout();
+        await bio.afterPasswordSuccess(username.trim(), password);
         setAuthenticated(true);
       } else {
         const next = attempts + 1;
@@ -103,6 +108,18 @@ export function AdminGate({ children }: Props) {
       }
     }
     setLoading(false);
+  };
+
+  const handleFingerprint = async () => {
+    const creds = await bio.unlock();
+    if (!creds) return;
+    if (await verifyAdmin(creds.username, creds.password)) {
+      clearLockout();
+      setAuthenticated(true);
+    } else {
+      await bio.reset();
+      setError('Fingerprint login was reset. Log in with your password once to turn it back on.');
+    }
   };
 
   return (
@@ -171,6 +188,8 @@ export function AdminGate({ children }: Props) {
             {mode === 'setup' ? <UserPlus className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
             {isLocked ? `Locked (${lockTimer}s)` : loading ? 'Please wait…' : mode === 'setup' ? 'Create Admin' : 'Login'}
           </Button>
+          {mode === 'login' && <BiometricControls bio={bio} onFingerprint={handleFingerprint} disabled={isLocked} />}
+          {mode === 'setup' && <BiometricControls bio={{ ...bio, enabled: false }} onFingerprint={handleFingerprint} autoPrompt={false} />}
         </div>
       </div>
     </div>
