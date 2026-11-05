@@ -37,18 +37,9 @@ keyPassword=YOUR_PASSWORD
 Now **every** build from Android Studio — debug or release — uses that key.
 
 ### 3. Use the same key in the cloud build
-
-Convert the key to text and store it as a repo secret:
-
-```bash
-base64 -w0 reports-keystore.jks > keystore.b64
-```
-
-GitHub repo → Settings → Secrets and variables → Actions → New repository secret
-- `ANDROID_KEYSTORE_BASE64` = contents of `keystore.b64`
-- `KEYSTORE_PASSWORD` = your password
-
-Both build paths now produce identical signatures.
+Automatic: the permanent keystore is committed (`android/reports-keystore.jks`
++ `android/keystore.properties`) and the GitHub workflow signs every build with
+it. No repo secrets are needed — both build paths produce identical signatures.
 
 ### 4. One last uninstall
 
