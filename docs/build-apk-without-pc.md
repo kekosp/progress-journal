@@ -30,7 +30,7 @@ one-time uninstall:
 3. Install `reports-v6.3.1.apk`, then import your JSON back.
 
 After that one migration, every future build installs as a normal update (no uninstall, data kept) —
-as long as the permanent keystore is configured below.
+the permanent shared signing key is committed to the repo, so every build signs identically.
 
 Other causes to check if it still fails:
 - The download was incomplete → re-download from the **Releases** tab.

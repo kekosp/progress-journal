@@ -56,5 +56,5 @@ After that, updates just work.
 ## Also remember
 
 Bump both numbers for each new build — Android refuses to install an older or
-equal `versionCode` over an existing one. Current: `versionName 6.3.2`,
-`versionCode 60302` in `android/app/build.gradle`.
+equal `versionCode` over an existing one. Current: `versionName 6.3.3`,
+`versionCode 60303` in `android/app/build.gradle`.
