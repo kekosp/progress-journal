@@ -100,7 +100,5 @@ app/src/main/assets/capacitor.config.json
 app/src/main/assets/capacitor.plugins.json
 app/src/main/res/xml/config.xml
 
-# Local signing config (never commit)
-keystore.properties
-*.jks
-*.keystore
+# Signing config + keystore ARE committed on purpose: the permanent shared key
+# must be identical in GitHub Actions builds and Android Studio builds.
