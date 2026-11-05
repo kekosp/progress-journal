@@ -30,7 +30,7 @@ one-time uninstall:
 3. Install `reports-v6.3.1.apk`, then import your JSON back.
 
 After that one migration, every future build installs as a normal update (no uninstall, data kept) —
-as long as the permanent keystore is configured below.
+the permanent shared signing key is committed to the repo, so every build signs identically.
 
 Other causes to check if it still fails:
 - The download was incomplete → re-download from the **Releases** tab.
@@ -38,18 +38,14 @@ Other causes to check if it still fails:
 - Not enough free storage.
 
 ## Keep the same signature (so future versions update in place)
-Without a permanent key each cloud build is signed with a new throwaway key, so every new version
-again shows "App not installed" until you uninstall.
+Done automatically: the permanent keystore is committed to the repo
+(`android/reports-keystore.jks` + `android/keystore.properties`) and the workflow
+signs every build with it — no GitHub secrets needed. GitHub builds and Android
+Studio builds share the exact same signature, so new versions install as normal
+updates.
 
-1. Run the workflow once without a keystore secret. It uploads an artifact named **keystore-backup**
-   containing `keystore.b64`.
-2. Open that file and copy its whole content.
-3. In your repo: **Settings → Secrets and variables → Actions → New repository secret**
-   - name `ANDROID_KEYSTORE_BASE64`, value = the copied text.
-   - optionally also add `KEYSTORE_PASSWORD` (defaults to `reports-ci`).
-4. From then on every build reuses that key, and new versions install as updates without uninstalling.
-
-Keep the keystore secret safe — losing it means you must uninstall/reinstall again on every device.
+Keep these two files safe and never regenerate them — losing the key means you
+must uninstall/reinstall again on every device.
 
 ## Notes
 - Screenshot blocking (FLAG_SECURE) is compiled in — verified by the `android-flag-secure` workflow.
