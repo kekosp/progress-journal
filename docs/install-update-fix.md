@@ -1,60 +1,54 @@
-# "App not installed as package conflicts with an existing package"
+# Keep Android updates installable
 
-That message is **never** a broken file. It means the app already on the phone
-was signed with a different key than the new file. Android only replaces an app
-in place when the package name **and the signing key** both match.
+Android accepts an update only when the package ID and signing key match the
+installed app. Keep using the same permanent keystore for every build; never
+create a replacement key unless you are prepared for a one-time uninstall and
+data restore.
 
-You were building two different ways (Android Studio and the GitHub cloud build).
-Each one used its own automatic key, so every new file conflicted with the last.
+## GitHub Actions signing setup
 
-## The fix: one key for every build
+Before running **Build Android APK**, add these four repository Actions secrets
+in GitHub under **Settings → Secrets and variables → Actions**:
 
-The project now uses a single signing key for **debug and release, locally and in
-the cloud**. Once the phone has one build made with that key, every future build
-installs as a normal update — no uninstall, data kept.
+| Secret name | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | Base64-encoded bytes of the existing `reports-keystore.jks` file |
+| `ANDROID_KEYSTORE_PASSWORD` | Existing keystore password |
+| `ANDROID_KEY_ALIAS` | Existing key alias |
+| `ANDROID_KEY_PASSWORD` | Existing key password |
 
-### 1. Create the key once (Android Studio)
+Do not paste these values into chat, issues, workflow files, or committed files.
+The workflow restores the keystore only for the build and removes the temporary
+file afterward. If any secret is missing, the build stops with a clear error.
 
-Build → Generate Signed App Bundle or APK → APK → **Create new…**
-- Key store path: `reports-keystore.jks` (save it somewhere safe, e.g. Documents)
-- Alias: `reports`
-- Password: pick one and write it down
-- Validity: 25 years
+For local Android Studio builds, keep the same keystore outside the repository
+and create an ignored `android/keystore.properties` file with:
 
-Losing this file means the uninstall problem comes back forever. Back it up.
-
-### 2. Point the project at it
-
-Create a file `android/keystore.properties` (it is git-ignored, never uploaded):
-
-```
-storeFile=/absolute/path/to/reports-keystore.jks
-storePassword=YOUR_PASSWORD
-keyAlias=reports
-keyPassword=YOUR_PASSWORD
+```properties
+storeFile=../reports-keystore.jks
+storePassword=<existing keystore password>
+keyAlias=<existing alias>
+keyPassword=<existing key password>
 ```
 
-Now **every** build from Android Studio — debug or release — uses that key.
+Keep a secure offline backup of the keystore. GitHub Actions secrets cannot be
+downloaded later, and losing the key prevents future in-place updates.
 
-### 3. Use the same key in the cloud build
-Automatic: the permanent keystore is committed (`android/reports-keystore.jks`
-+ `android/keystore.properties`) and the GitHub workflow signs every build with
-it. No repo secrets are needed — both build paths produce identical signatures.
+## Important security note
 
-### 4. One last uninstall
+The repository was public while signing files were committed, so moving them to
+Actions secrets protects future builds but does not erase copies from Git
+history or existing clones. The requested same key is retained to avoid breaking
+updates. Anyone who copied the old public files may still have signing material;
+making the repository private and removing the old files from repository history
+reduces further exposure, but cannot revoke copies already downloaded.
 
-The version currently on the phone was signed by an older/other key, so this one
-switch cannot be an update:
+## If the phone says “App not installed”
 
-1. In the app: Data transfer → **Export JSON**, keep the file.
-2. Uninstall **Reports**.
-3. Install the new build (version 6.3.2).
-4. Import the JSON back.
+1. Confirm the new APK was built with the four secrets above and the same package.
+2. Confirm the version code is higher than the installed version.
+3. If the installed app was signed with a different key, export its data, uninstall
+   it once, install the new APK, and import the data again.
 
-After that, updates just work.
-
-## Also remember
-
-Bump both numbers for each new build — Android refuses to install an older or
-equal `versionCode` over an existing one. Current: `versionName 6.3.3`,
-`versionCode 60303` in `android/app/build.gradle`.
+After the phone has a build signed with the permanent key, later builds using that
+same key install as normal updates.

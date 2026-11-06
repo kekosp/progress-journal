@@ -1,12 +1,12 @@
 apply plugin: 'com.android.application'
 
-// One shared signing key for BOTH debug and release builds.
-// Put a file named `keystore.properties` next to this file (android/keystore.properties):
+// A shared signing key can be used for local debug/release builds and CI releases.
+// For local builds, keep `keystore.properties` next to this file (android/keystore.properties):
 //   storeFile=/absolute/path/to/reports-keystore.jks
 //   storePassword=...
 //   keyAlias=reports
 //   keyPassword=...
-// Or set env vars: RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+// GitHub Actions supplies the same values through RELEASE_* environment variables.
 def ksPropsFile = rootProject.file('keystore.properties')
 def ksProps = new Properties()
 if (ksPropsFile.exists()) {

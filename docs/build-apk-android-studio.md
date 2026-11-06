@@ -86,19 +86,11 @@ Transfer this file to your phone and install it.
 
 A release APK must be signed with a keystore. If you do not sign it, Android will not install it as an update over an existing version.
 
-### Create a keystore (one time only)
-
-1. In Android Studio, click **Build → Generate Signed App Bundle or APK**.
-2. Select **APK**, click **Next**.
-3. Click **Create new…** under **Key store path**.
-4. Fill in the form:
-   - **Key store path:** choose a safe folder and name it `reports-keystore.jks`.
-   - **Password:** choose a strong password and remember it.
-   - **Alias:** `reports`.
-   - **Key password:** use the same as the keystore password for simplicity.
-   - **Validity:** 25 years.
-   - Fill in at least one name field.
-5. Click **OK**.
+Do **not** create a new keystore for an update. Use the existing permanent
+`reports-keystore.jks` and its original passwords, saved outside the repository.
+Create the ignored `android/keystore.properties` file as described in
+`docs/install-update-fix.md`. If you do not have a safe copy, do not generate a
+replacement; a replacement key cannot update installs signed with the old key.
 
 ### Build the signed release APK
 
@@ -114,7 +106,8 @@ The signed APK is at:
 android/app/build/outputs/apk/release/app-release.apk
 ```
 
-Keep the `reports-keystore.jks` file safe. If you lose it, you will never be able to update the app in place again.
+Keep the `reports-keystore.jks` file safe and never commit it. If you lose it,
+you will not be able to update the app in place again.
 
 ---
 
