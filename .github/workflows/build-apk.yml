@@ -49,14 +49,43 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Restore permanent Android signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::Add ANDROID_KEYSTORE_BASE64 to repository Actions secrets before building."
+            exit 1
+          fi
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/reports-keystore.jks
+          test -s android/reports-keystore.jks
+
       - name: Build signed release APK
         working-directory: android
+        env:
+          RELEASE_STORE_FILE: ${{ github.workspace }}/android/reports-keystore.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
+          for name in RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Required Android signing secret is missing: $name"
+              exit 1
+            fi
+          done
+          if [ ! -s "$RELEASE_STORE_FILE" ]; then
+            echo "::error::The Android signing key file was not restored."
+            exit 1
+          fi
           chmod +x gradlew
-          # Signed automatically with the committed permanent key (android/keystore.properties
-          # + android/reports-keystore.jks) — the SAME signature on every build, so updates
-          # install without uninstalling.
           ./gradlew assembleRelease
+
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f android/reports-keystore.jks
 
       - name: Rename APK
         run: |

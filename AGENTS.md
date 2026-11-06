@@ -1,3 +1,3 @@
 # Project Rules
 
-- Android signing: `android/reports-keystore.jks` + `android/keystore.properties` are committed on purpose so GitHub Actions builds and Android Studio builds always sign with the SAME permanent key — otherwise every rebuild shows "App not installed" (signature mismatch) and needs a reinstall. Never regenerate these files or gitignore them; bump versionCode/versionName (defaults also in `.github/workflows/build-apk.yml` inputs) for each build.
+- Android signing: never commit the permanent keystore or passwords; GitHub Actions reads them from repository secrets, while local builds use ignored `android/keystore.properties`. Both must use the same existing key to preserve in-place updates; never regenerate it, and bump versionCode/versionName for each build.
