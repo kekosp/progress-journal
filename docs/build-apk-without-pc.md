@@ -7,11 +7,12 @@ Android signing secrets in `docs/install-update-fix.md` are configured.
 1. In Lovable, use **GitHub → Connect / Export to GitHub** so the project lives in your own GitHub repo.
 
 ## Every time you want an APK
-1. Open your repo on your phone browser (github.com).
-2. Go to the **Actions** tab → **Build Android APK**.
-3. Tap **Run workflow**, use the version shown by the workflow (increase both values for each later build), then tap the green **Run workflow** button.
-4. Wait ~5–10 minutes for the green check.
-5. Two ways to get the file:
+1. Confirm the four existing-key secrets are set in GitHub (**Settings → Secrets and variables → Actions**).
+2. Open your repo on your phone browser (github.com).
+3. Go to the **Actions** tab → **Build Android APK**.
+4. Tap **Run workflow**, use the version shown by the workflow (increase both values for each later build), then tap the green **Run workflow** button.
+5. Wait ~5–10 minutes for the green check.
+6. Two ways to get the file:
    - **Releases tab** → `Reports v6.3.1` → download `reports-v6.3.1.apk` (easiest on a phone), or
    - open the workflow run → **Artifacts** → `reports-v6.3.1-apk` (downloads as a .zip).
 6. Open the downloaded APK, allow "Install unknown apps" for your browser/files app, and install.
@@ -39,9 +40,9 @@ Other causes to check if it still fails:
 - Not enough free storage.
 
 ## Keep the same signature (so future versions update in place)
-The workflow uses the permanent key saved as GitHub repository Actions secrets.
-For local Android Studio builds, use the same key in an ignored local
-`android/keystore.properties` file. Never create a new key for an update.
+Release APKs are signed only with the existing key saved as GitHub repository Actions secrets.
+Local Android Studio builds are for debug testing only; they cannot produce an update-signed release APK.
+Never create a new key for an update.
 See `docs/install-update-fix.md` for secret names and the public-repository
 security warning.
 

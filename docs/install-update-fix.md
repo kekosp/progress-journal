@@ -18,21 +18,14 @@ in GitHub under **Settings → Secrets and variables → Actions**:
 | `ANDROID_KEY_PASSWORD` | Existing key password |
 
 Do not paste these values into chat, issues, workflow files, or committed files.
-The workflow restores the keystore only for the build and removes the temporary
-file afterward. If any secret is missing, the build stops with a clear error.
+The workflow checks that all four secrets exist before starting the APK build,
+validates the encoded keystore and alias, and removes the temporary file after
+the job. If anything is missing or invalid, it stops; it never generates or
+substitutes another key. Release builds are available only through this workflow;
+Android Studio can build debug APKs for testing, not release APKs for updates.
 
-For local Android Studio builds, keep the same keystore outside the repository
-and create an ignored `android/keystore.properties` file with:
-
-```properties
-storeFile=../reports-keystore.jks
-storePassword=<existing keystore password>
-keyAlias=<existing alias>
-keyPassword=<existing key password>
-```
-
-Keep a secure offline backup of the keystore. GitHub Actions secrets cannot be
-downloaded later, and losing the key prevents future in-place updates.
+Keep a secure offline backup of the same existing keystore. GitHub Actions
+secrets cannot be downloaded later, and losing the key prevents future in-place updates.
 
 ## Important security note
 

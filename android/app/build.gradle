@@ -1,22 +1,14 @@
 apply plugin: 'com.android.application'
 
-// A shared signing key can be used for local debug/release builds and CI releases.
-// For local builds, keep `keystore.properties` next to this file (android/keystore.properties):
-//   storeFile=/absolute/path/to/reports-keystore.jks
-//   storePassword=...
-//   keyAlias=reports
-//   keyPassword=...
-// GitHub Actions supplies the same values through RELEASE_* environment variables.
-def ksPropsFile = rootProject.file('keystore.properties')
-def ksProps = new Properties()
-if (ksPropsFile.exists()) {
-    ksPropsFile.withInputStream { ksProps.load(it) }
-}
-def ksStoreFile = ksProps['storeFile'] ?: System.getenv('RELEASE_STORE_FILE')
-def ksStorePassword = ksProps['storePassword'] ?: System.getenv('RELEASE_STORE_PASSWORD')
-def ksKeyAlias = ksProps['keyAlias'] ?: System.getenv('RELEASE_KEY_ALIAS')
-def ksKeyPassword = ksProps['keyPassword'] ?: System.getenv('RELEASE_KEY_PASSWORD')
-def hasSharedKey = ksStoreFile != null && file(ksStoreFile).exists()
+// Release signing material is supplied to GitHub Actions from repository secrets only.
+// Never read local signing properties or fall back to a generated key for release builds.
+def ksStoreFile = System.getenv('RELEASE_STORE_FILE')
+def ksStorePassword = System.getenv('RELEASE_STORE_PASSWORD')
+def ksKeyAlias = System.getenv('RELEASE_KEY_ALIAS')
+def ksKeyPassword = System.getenv('RELEASE_KEY_PASSWORD')
+def hasSigningValues = [ksStoreFile, ksStorePassword, ksKeyAlias, ksKeyPassword]
+    .every { it != null && !it.trim().isEmpty() }
+def hasSharedKey = hasSigningValues && file(ksStoreFile).isFile()
 
 android {
     namespace = "app.lovable.k541b7c83680c47fe8dfc25833fe24b42"
@@ -52,13 +44,17 @@ android {
                 signingConfig signingConfigs.shared
             }
         }
-        debug {
-            // Debug builds use the SAME key as release, so a debug install can be
-            // updated by a release build (and vice versa) with no uninstall.
-            if (hasSharedKey) {
-                signingConfig signingConfigs.shared
-            }
-        }
+    }
+}
+
+// Fail the requested release task before Gradle can produce an unsigned or
+// differently signed release APK. Debug-only checks do not need release secrets.
+gradle.taskGraph.whenReady { taskGraph ->
+    def releaseRequested = taskGraph.allTasks.any { task ->
+        task.name.toLowerCase(Locale.ROOT).contains('release')
+    }
+    if (releaseRequested && !hasSharedKey) {
+        throw new GradleException('Release signing requires the existing key and all four GitHub Actions secrets. No fallback signing key is permitted.')
     }
 }
 

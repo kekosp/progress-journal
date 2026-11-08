@@ -17,12 +17,58 @@ on:
         default: '60303'
 
 jobs:
+  verify-signing-secrets:
+    name: Verify existing signing secrets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Stop if signing secrets are missing
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Required GitHub Actions secret is missing: $name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::No APK was built. Add the existing signing key secrets; this workflow never generates a replacement key."
+            exit 1
+          fi
+          temp_keystore="$(mktemp)"
+          trap 'rm -f "$temp_keystore"' EXIT
+          if ! printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$temp_keystore" || [ ! -s "$temp_keystore" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not a valid, non-empty encoded keystore."
+            exit 1
+          fi
+
   build:
+    needs: verify-signing-secrets
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v5
+
+      - name: Restore and verify existing Android signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/reports-keystore.jks
+          test -s android/reports-keystore.jks
+          keytool -list -keystore android/reports-keystore.jks \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" >/dev/null
 
       - uses: actions/setup-node@v5
         with:
@@ -49,18 +95,6 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Restore permanent Android signing key
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          set -euo pipefail
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "::error::Add ANDROID_KEYSTORE_BASE64 to repository Actions secrets before building."
-            exit 1
-          fi
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/reports-keystore.jks
-          test -s android/reports-keystore.jks
-
       - name: Build signed release APK
         working-directory: android
         env:
@@ -70,12 +104,6 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          for name in RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error::Required Android signing secret is missing: $name"
-              exit 1
-            fi
-          done
           if [ ! -s "$RELEASE_STORE_FILE" ]; then
             echo "::error::The Android signing key file was not restored."
             exit 1

@@ -65,7 +65,7 @@ You must run this every time you:
 
 ---
 
-## Step 5: Build a debug APK (fastest for testing)
+## Step 5: Build a debug APK (testing only)
 
 1. In Android Studio, make sure the top-left dropdown shows **app**.
 2. Click **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
@@ -79,35 +79,17 @@ android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Transfer this file to your phone and install it.
+This debug APK uses Android's standard debug signing and is not suitable for updating the release app.
 
 ---
 
-## Step 6: Build a release APK (for sharing/publishing)
+## Step 6: Build a release APK (GitHub Actions only)
 
-A release APK must be signed with a keystore. If you do not sign it, Android will not install it as an update over an existing version.
-
-Do **not** create a new keystore for an update. Use the existing permanent
-`reports-keystore.jks` and its original passwords, saved outside the repository.
-Create the ignored `android/keystore.properties` file as described in
-`docs/install-update-fix.md`. If you do not have a safe copy, do not generate a
-replacement; a replacement key cannot update installs signed with the old key.
-
-### Build the signed release APK
-
-1. In the same dialog, choose the keystore you just created.
-2. Enter the passwords.
-3. Select the `release` build type.
-4. Click **Finish**.
-5. Wait for the build.
-
-The signed APK is at:
-
-```
-android/app/build/outputs/apk/release/app-release.apk
-```
-
-Keep the `reports-keystore.jks` file safe and never commit it. If you lose it,
-you will not be able to update the app in place again.
+Release signing is restricted to the **Build Android APK** GitHub Actions workflow,
+which reads the existing signing key from the four repository Actions secrets.
+Android Studio release builds intentionally stop if those GitHub-provided values
+are unavailable; there is no local-key or generated-key fallback. Follow
+`docs/build-apk-without-pc.md` to create an update-compatible release APK.
 
 ---
 
@@ -146,7 +128,8 @@ If you already have an old version of the app on your phone and you see **“App
 
 ### To avoid it forever
 
-Always sign release builds with the **same keystore**. Then every future version installs as a normal update and your data stays intact.
+Build release APKs only through GitHub Actions with the same existing key in
+repository secrets. Never generate or substitute another signing key.
 
 ---
 
@@ -189,4 +172,4 @@ Build → Build Bundle(s) / APK(s) → Build APK(s)
 5. Build → Build APK(s) or Generate Signed APK.
 6. Transfer the APK to your phone and install.
 
-For a release build you can update in place, create one keystore and reuse it forever.
+For an update-compatible release, use the GitHub Actions workflow and its existing-key secrets.
