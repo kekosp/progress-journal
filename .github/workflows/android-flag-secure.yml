@@ -41,16 +41,16 @@ jobs:
       - name: Sync Capacitor Android project
         run: npx cap sync android
 
-      - name: Assemble all Android variants
+      - name: Assemble Android debug APK for security scan
         working-directory: android
-        run: ./gradlew assemble --stacktrace
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: List built APKs
         id: apks
         run: |
-          mapfile -t apks < <(find android/app/build/outputs/apk -name '*.apk' | sort)
+          mapfile -t apks < <(find android/app/build/outputs/apk/debug -name '*.apk' | sort)
           if [ "${#apks[@]}" -eq 0 ]; then
-            echo "No APKs produced — cannot verify screenshot protection." >&2
+            echo "No debug APK produced — cannot verify screenshot protection." >&2
             exit 1
           fi
           printf '%s\n' "${apks[@]}"
@@ -59,10 +59,3 @@ jobs:
       - name: Verify SecureApplication / FLAG_SECURE in every variant
         run: ./scripts/verify-flag-secure.sh ${{ steps.apks.outputs.list }}
 
-      - name: Upload scanned APKs
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: android-apks
-          path: android/app/build/outputs/apk/**/*.apk
-          if-no-files-found: ignore
