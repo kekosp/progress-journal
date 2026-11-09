@@ -10,7 +10,7 @@ on:
 
 jobs:
   flag-secure-scan:
-    name: Bytecode scan every Android build variant
+    name: Bytecode scan the Android debug build
     runs-on: ubuntu-latest
 
     steps:
@@ -56,6 +56,6 @@ jobs:
           printf '%s\n' "${apks[@]}"
           printf 'list=%s\n' "${apks[*]}" >> "$GITHUB_OUTPUT"
 
-      - name: Verify SecureApplication / FLAG_SECURE in every variant
+      - name: Verify SecureApplication / FLAG_SECURE in the debug build
         run: ./scripts/verify-flag-secure.sh ${{ steps.apks.outputs.list }}
 
