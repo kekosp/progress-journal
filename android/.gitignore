@@ -100,5 +100,5 @@ app/src/main/assets/capacitor.config.json
 app/src/main/assets/capacitor.plugins.json
 app/src/main/res/xml/config.xml
 
-# Keep signing material out of version control. Store the same permanent key
-# locally in ignored keystore.properties and in GitHub Actions repository secrets.
+# Keep all signing material out of version control. Release signing is supplied
+# only through GitHub Actions repository secrets.
